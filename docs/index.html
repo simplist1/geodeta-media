@@ -8,392 +8,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Geodeta Media">
   <title>Geodeta Media</title>
-  <style>
-    :root {
-      color-scheme: light;
-      --bg: #f5f5f7;
-      --card: rgba(255,255,255,.93);
-      --text: #111114;
-      --muted: #77777f;
-      --line: rgba(20,20,25,.08);
-      --accent: #5b5ce2;
-      --soft: rgba(91,92,226,.12);
-      --danger: #e5484d;
-      --shadow: 0 12px 35px rgba(30,30,40,.08);
-      --ease: cubic-bezier(.22,1,.36,1);
-    }
-
-    * { box-sizing: border-box; }
-    html { background: var(--bg); }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", Inter, system-ui, sans-serif;
-      background: radial-gradient(circle at top right, rgba(91,92,226,.08), transparent 34rem), var(--bg);
-      color: var(--text);
-      -webkit-font-smoothing: antialiased;
-      padding-bottom: calc(92px + env(safe-area-inset-bottom));
-      overflow-x: hidden;
-    }
-
-    button, input { font: inherit; }
-    button { -webkit-tap-highlight-color: transparent; }
-    input, input[type="text"], input[type="url"], input[type="search"], input[type="file"] {
-      color: var(--text) !important;
-      -webkit-text-fill-color: var(--text) !important;
-      caret-color: var(--accent);
-    }
-    input::placeholder {
-      color: var(--muted) !important;
-      -webkit-text-fill-color: var(--muted) !important;
-      opacity: 1;
-    }
-
-    .app {
-      width: min(100%, 760px);
-      margin: 0 auto;
-      padding: calc(20px + env(safe-area-inset-top)) 18px 24px;
-    }
-
-    .view { display: none; opacity: 0; transform: translateX(18px); }
-    .view.active { display: block; animation: viewIn .42s var(--ease) forwards; }
-    @keyframes viewIn { to { opacity: 1; transform: none; } }
-
-    .topbar, .collection-header, .section-head, .sheet-head, .filter-row,
-    .source-tabs, .profile-hero, .settings-row, .color-grid {
-      display: flex;
-      align-items: center;
-    }
-
-    .topbar { justify-content: space-between; gap: 12px; margin-bottom: 26px; }
-    .eyebrow { margin: 0 0 4px; color: var(--muted); font-size: 13px; font-weight: 650; letter-spacing: .02em; }
-    h1 { margin: 0; font-size: clamp(30px,8vw,44px); line-height: .98; letter-spacing: -.045em; }
-    h2, h3 { margin: 0; }
-
-    .avatar, .icon-button {
-      border: 0;
-      background: rgba(255,255,255,.82);
-      color: var(--text);
-      box-shadow: var(--shadow);
-      cursor: pointer;
-      display: grid;
-      place-items: center;
-      transition: transform .2s var(--ease), background .2s ease;
-    }
-    .avatar:active, .icon-button:active { transform: scale(.94); }
-    .avatar {
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      background: linear-gradient(145deg,#212126,#65656f);
-      color: white;
-      font-weight: 750;
-      overflow: hidden;
-    }
-    .avatar img, .profile-photo img { width: 100%; height: 100%; object-fit: cover; }
-    .icon-button { width: 42px; height: 42px; border-radius: 14px; }
-
-    .search-wrap { position: relative; margin-bottom: 20px; }
-    .search-wrap > svg { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
-    .search, .text-input, .sheet-input {
-      width: 100%;
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      padding: 14px 16px;
-      background: rgba(255,255,255,.78);
-      outline: none;
-      box-shadow: 0 4px 20px rgba(20,20,30,.035);
-      transition: border-color .2s ease, box-shadow .2s ease, transform .2s var(--ease);
-    }
-    .search { padding-left: 44px; }
-    .search:focus, .text-input:focus, .sheet-input:focus {
-      border-color: rgba(91,92,226,.35);
-      box-shadow: 0 0 0 4px rgba(91,92,226,.08);
-      transform: translateY(-1px);
-    }
-
-    .section-head { justify-content: space-between; margin: 25px 2px 12px; }
-    .section-head h2 { font-size: 20px; letter-spacing: -.025em; }
-    .text-button { border: 0; background: transparent; color: var(--accent); font-weight: 700; cursor: pointer; padding: 4px; }
-
-    .groups { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
-    .group-card {
-      position: relative;
-      min-height: 132px;
-      border: 1px solid var(--line);
-      border-radius: 24px;
-      padding: 16px;
-      overflow: hidden;
-      text-align: left;
-      background: var(--card);
-      box-shadow: 0 8px 30px rgba(25,25,35,.05);
-      cursor: pointer;
-      transition: transform .22s var(--ease), border-color .22s ease, box-shadow .22s ease, opacity .2s ease;
-    }
-    .group-card:hover { transform: translateY(-2px); box-shadow: 0 14px 34px rgba(25,25,35,.08); }
-    .group-card.dragging { opacity: .42; transform: scale(.96); }
-    .group-card.drag-over { border-color: var(--accent); }
-    .group-icon { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 14px; color: white; margin-bottom: 18px; }
-    .group-card strong { display: block; font-size: 17px; margin-bottom: 3px; }
-    .group-card .count { color: var(--muted); font-size: 13px; }
-
-    .collection-delete, .drag-handle, .episode-delete {
-      position: absolute;
-      border: 0;
-      border-radius: 50%;
-      display: grid;
-      place-items: center;
-      background: rgba(120,120,128,.12);
-      color: var(--muted);
-      cursor: pointer;
-      z-index: 2;
-      transition: transform .18s var(--ease), background .18s ease;
-    }
-    .collection-delete:active, .drag-handle:active, .episode-delete:active { transform: scale(.85); }
-    .collection-delete { top: 11px; right: 11px; width: 27px; height: 27px; }
-    .drag-handle { top: 11px; right: 45px; width: 27px; height: 27px; touch-action: none; cursor: grab; }
-    .episode-delete { top: 8px; right: 8px; width: 26px; height: 26px; }
-    .collection-delete svg, .drag-handle svg, .episode-delete svg { width: 14px; height: 14px; }
-
-    .episode-list { display: grid; gap: 10px; }
-    .episode {
-      position: relative;
-      display: grid;
-      grid-template-columns: 72px minmax(0,1fr) 30px;
-      align-items: center;
-      gap: 13px;
-      width: 100%;
-      padding: 10px 42px 10px 10px;
-      border: 1px solid var(--line);
-      border-radius: 20px;
-      background: rgba(255,255,255,.84);
-      box-shadow: 0 7px 25px rgba(25,25,35,.04);
-      color: inherit;
-      transition: transform .2s var(--ease), opacity .22s ease;
-    }
-    .episode:active { transform: scale(.985); }
-    .episode-main { display: contents; cursor: pointer; }
-    .art { width: 72px; aspect-ratio: 1; border-radius: 15px; display: grid; place-items: center; color: white; font-size: 23px; font-weight: 800; }
-    .one { background: linear-gradient(145deg,#5b5ce2,#9b6cff); }
-    .two { background: linear-gradient(145deg,#ff735f,#ffb45e); }
-    .three { background: linear-gradient(145deg,#1c8f6d,#63c997); }
-    .four { background: linear-gradient(145deg,#232329,#666674); }
-    .five { background: linear-gradient(145deg,#1688d4,#64b5f6); }
-    .podcast-name { margin: 0 0 5px; color: var(--muted); font-size: 12px; font-weight: 650; }
-    .episode-title { margin: 0; font-size: 15px; font-weight: 720; line-height: 1.22; }
-    .meta { display: flex; align-items: center; gap: 8px; margin-top: 9px; color: var(--muted); font-size: 12px; }
-    .source-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 7px; border-radius: 999px; background: rgba(120,120,128,.12); }
-    .source-badge svg { width: 12px; height: 12px; }
-    .progress { flex: 1; height: 4px; border-radius: 999px; background: #e9e9ed; overflow: hidden; }
-    .progress span { display: block; height: 100%; background: var(--accent); }
-    .chevron { display: grid; place-items: center; color: #aaaab1; }
-
-    .collection-header { gap: 12px; margin-bottom: 22px; }
-    .collection-title { display: flex; align-items: center; gap: 14px; min-width: 0; }
-    .large-icon { width: 54px; height: 54px; border-radius: 18px; color: white; display: grid; place-items: center; flex: 0 0 auto; }
-    .collection-title h1 { font-size: 32px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .collection-actions { margin-left: auto; position: relative; }
-    .filter-button.active { color: var(--accent); background: var(--soft); }
-    .filter-popover {
-      position: absolute;
-      right: 0;
-      top: 50px;
-      width: 220px;
-      padding: 10px;
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      box-shadow: 0 18px 45px rgba(20,20,30,.15);
-      opacity: 0;
-      transform: translateY(-8px) scale(.96);
-      pointer-events: none;
-      transition: .22s var(--ease);
-      z-index: 15;
-    }
-    .filter-popover.open { opacity: 1; transform: none; pointer-events: auto; }
-    .filter-row { gap: 10px; padding: 10px; border-radius: 12px; }
-    .filter-row input { width: 18px; height: 18px; accent-color: var(--accent); }
-    .empty { padding: 42px 18px; text-align: center; color: var(--muted); }
-
-    .profile-hero { gap: 16px; padding: 18px; background: var(--card); border: 1px solid var(--line); border-radius: 24px; box-shadow: var(--shadow); }
-    .profile-photo { position: relative; width: 82px; height: 82px; border-radius: 26px; background: linear-gradient(145deg,#5b5ce2,#9b6cff); display: grid; place-items: center; color: white; font-size: 28px; font-weight: 800; overflow: hidden; flex: 0 0 auto; }
-    .photo-edit { position: absolute; right: 4px; bottom: 4px; width: 28px; height: 28px; border: 0; border-radius: 50%; display: grid; place-items: center; background: #fff; color: #111; box-shadow: 0 4px 12px rgba(0,0,0,.18); }
-    .photo-edit svg { width: 14px; }
-    .profile-fields { flex: 1; min-width: 0; }
-    .profile-fields label, .settings-label { display: block; color: var(--muted); font-size: 12px; font-weight: 700; margin-bottom: 7px; }
-    .settings-card { background: var(--card); border: 1px solid var(--line); border-radius: 22px; overflow: hidden; box-shadow: 0 8px 30px rgba(25,25,35,.04); }
-    .settings-row { justify-content: space-between; gap: 14px; padding: 15px 16px; border-bottom: 1px solid var(--line); }
-    .settings-row:last-child { border-bottom: 0; }
-    .settings-copy { min-width: 0; }
-    .settings-copy strong { display: block; font-size: 15px; }
-    .settings-copy span { display: block; color: var(--muted); font-size: 12px; margin-top: 3px; }
-    .action-button { border: 0; border-radius: 12px; padding: 9px 12px; background: var(--soft); color: var(--accent); font-weight: 750; cursor: pointer; white-space: nowrap; }
-    .action-button.unlink { background: rgba(229,72,77,.12); color: var(--danger); }
-    .sync-stack { display: grid; gap: 10px; }
-    .sync-button { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 15px; padding: 14px; background: rgba(120,120,128,.12); color: var(--text); font-weight: 750; cursor: pointer; }
-    .sync-button.primary-sync { background: var(--accent); color: white; }
-    .sync-gap { height: 8px; }
-    .status-pill { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
-    .status-pill svg { width: 14px; }
-
-    .bottom-nav {
-      position: fixed;
-      z-index: 20;
-      left: 50%;
-      bottom: 0;
-      transform: translateX(-50%);
-      width: min(100%,760px);
-      display: grid;
-      grid-template-columns: repeat(3,1fr);
-      padding: 10px 18px calc(10px + env(safe-area-inset-bottom));
-      background: rgba(247,247,249,.84);
-      border-top: 1px solid var(--line);
-      backdrop-filter: blur(24px) saturate(160%);
-    }
-    .nav-item { border: 0; background: transparent; color: var(--muted); display: grid; justify-items: center; gap: 4px; font-size: 11px; font-weight: 650; cursor: pointer; }
-    .nav-item.active { color: var(--accent); }
-    .nav-item svg { width: 21px; height: 21px; }
-
-    .sheet-backdrop {
-      position: fixed;
-      inset: 0;
-      z-index: 50;
-      display: flex;
-      align-items: end;
-      justify-content: center;
-      background: rgba(10,10,15,0);
-      backdrop-filter: blur(0);
-      pointer-events: none;
-      transition: background .28s ease, backdrop-filter .28s ease;
-    }
-    .sheet-backdrop.open { background: rgba(10,10,15,.28); backdrop-filter: blur(5px); pointer-events: auto; }
-    .sheet {
-      width: min(100%,760px);
-      border-radius: 28px 28px 0 0;
-      background: #fff;
-      padding: 12px 20px calc(26px + env(safe-area-inset-bottom));
-      box-shadow: 0 -20px 60px rgba(20,20,30,.15);
-      transform: translateY(105%);
-      opacity: .5;
-      transition: transform .38s var(--ease), opacity .3s ease;
-      max-height: 90vh;
-      overflow: auto;
-    }
-    .sheet-backdrop.open .sheet { transform: none; opacity: 1; }
-    .handle { width: 38px; height: 5px; border-radius: 99px; background: #d8d8dc; margin: 0 auto 18px; }
-    .sheet-head { justify-content: space-between; margin-bottom: 14px; }
-    .sheet h3 { font-size: 23px; }
-    .sheet-copy { color: var(--muted); margin: -4px 0 16px; font-size: 13px; }
-    .field-group { display: grid; gap: 10px; }
-    .field-group[hidden] { display: none; }
-
-    .source-tabs { gap: 8px; margin-bottom: 14px; }
-    .source-tab {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 7px;
-      padding: 11px;
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      background: #f8f8fa;
-      color: var(--text);
-      font-weight: 700;
-      cursor: pointer;
-      transition: transform .18s var(--ease), border-color .18s ease, background .18s ease;
-    }
-    .source-tab.selected { border-color: var(--accent); background: var(--soft); color: var(--accent); }
-
-    .icon-search { margin-top: 12px; }
-    .icon-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 9px; margin-top: 12px; max-height: 210px; overflow: auto; padding: 2px; }
-    .icon-choice {
-      aspect-ratio: 1;
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      background: #f8f8fa;
-      color: var(--text);
-      display: grid;
-      place-items: center;
-      cursor: pointer;
-      transition: transform .18s var(--ease), border-color .18s ease, background .18s ease;
-    }
-    .icon-choice:active { transform: scale(.9); }
-    .icon-choice.selected { border-color: var(--accent); background: var(--soft); color: var(--accent); }
-    .icon-choice svg { width: 22px; height: 22px; }
-    .color-label { display: block; margin-top: 16px; font-size: 13px; font-weight: 700; color: var(--muted); }
-    .color-grid { gap: 10px; margin-top: 9px; flex-wrap: wrap; }
-    .color-choice {
-      width: 34px;
-      height: 34px;
-      border-radius: 50%;
-      border: 0;
-      background: var(--swatch);
-      box-shadow: inset 0 0 0 3px white;
-      cursor: pointer;
-      transition: transform .18s var(--ease), outline .18s ease;
-    }
-    .color-choice.selected { outline: 3px solid color-mix(in srgb,var(--swatch),transparent 55%); transform: scale(1.08); }
-
-    .primary, .secondary {
-      width: 100%;
-      border: 0;
-      border-radius: 15px;
-      padding: 14px 16px;
-      margin-top: 14px;
-      font-weight: 750;
-      cursor: pointer;
-      transition: transform .18s var(--ease), filter .18s ease;
-    }
-    .primary { background: var(--accent); color: white; }
-    .secondary { background: rgba(120,120,128,.12); color: var(--text); }
-    .primary:active, .secondary:active { transform: scale(.985); }
-    .player-frame { width: 100%; height: 152px; border: 0; border-radius: 16px; }
-    .local-player { width: 100%; margin-top: 8px; }
-
-    .toast {
-      position: fixed;
-      left: 50%;
-      bottom: calc(92px + env(safe-area-inset-bottom));
-      transform: translate(-50%,18px);
-      z-index: 70;
-      opacity: 0;
-      background: rgba(24,24,29,.92);
-      color: white;
-      padding: 10px 14px;
-      border-radius: 999px;
-      font-size: 13px;
-      transition: .25s var(--ease);
-      pointer-events: none;
-    }
-    .toast.show { opacity: 1; transform: translate(-50%,0); }
-
-    @media (min-width:620px) {
-      .groups { grid-template-columns: repeat(4,1fr); }
-      .app { padding-inline: 28px; }
-    }
-
-    @media (prefers-color-scheme:dark) {
-      :root {
-        color-scheme: dark;
-        --bg: #111114;
-        --card: rgba(29,29,34,.94);
-        --text: #f5f5f7;
-        --muted: #9898a1;
-        --line: rgba(255,255,255,.08);
-        --accent: #8d8dff;
-        --soft: rgba(141,141,255,.14);
-      }
-      .search, .text-input, .sheet-input, .episode { background: rgba(30,30,35,.88); }
-      .progress { background: #35353c; }
-      .bottom-nav { background: rgba(20,20,24,.84); }
-      .sheet { background: #1c1c20; }
-      .source-tab, .icon-choice { background: #27272c; }
-      .avatar, .icon-button { background: #25252a; color: var(--text); }
-      .photo-edit { background: #eee; color: #111; }
-      .color-choice { box-shadow: inset 0 0 0 3px #1c1c20; }
-    }
-  </style>
+  <link rel="stylesheet" href="./app.css">
 </head>
 <body>
   <main class="app">
@@ -408,6 +23,7 @@
       <div id="noCollections" class="empty" hidden>No collections match your search.</div>
       <div class="section-head"><h2>Recently Saved</h2></div>
       <section id="recentEpisodes" class="episode-list"></section>
+      <div id="recentEmpty" class="empty" hidden>No saved episodes yet.</div>
     </section>
 
     <section id="collectionView" class="view">
@@ -418,10 +34,12 @@
           <div><p class="eyebrow">COLLECTION</p><h1 id="collectionPageTitle">Collection</h1></div>
         </div>
         <div class="collection-actions">
+          <button id="collectionHeaderEdit" class="icon-button" aria-label="Edit collection"><i data-lucide="pencil"></i></button>
           <button id="filterButton" class="icon-button filter-button" aria-label="Filter episodes"><i data-lucide="list-filter"></i></button>
           <div id="filterPopover" class="filter-popover">
             <label class="filter-row"><input id="showSpotify" type="checkbox" checked> Spotify</label>
-            <label class="filter-row"><input id="showLocal" type="checkbox" checked> Local uploads</label>
+            <label class="filter-row"><input id="showLocal" type="checkbox" checked> Local files</label>
+            <label class="filter-row"><input id="showOnline" type="checkbox" checked> Online files</label>
           </div>
         </div>
       </div>
@@ -440,13 +58,11 @@
         </div>
         <div class="profile-fields"><label for="nickname">Nickname</label><input id="nickname" class="text-input" value="Som" maxlength="24"></div>
       </div>
-
       <div class="section-head"><h2>Account Links</h2></div>
       <div class="settings-card">
         <div class="settings-row"><div class="settings-copy"><strong>Google</strong><span>Use Google for your Geodeta Media account.</span></div><button id="googleLink" class="action-button">Link to Google</button></div>
         <div class="settings-row"><div class="settings-copy"><strong>Spotify</strong><span>Allow Spotify listening-position syncing.</span></div><button id="spotifyLink" class="action-button">Link to Spotify</button></div>
       </div>
-
       <div class="section-head"><h2>Sync</h2><span id="syncStatus" class="status-pill"><i data-lucide="check-circle-2"></i> Ready</span></div>
       <div class="sync-stack">
         <button class="sync-button primary-sync" data-sync="all"><i data-lucide="refresh-cw"></i>Sync All</button>
@@ -467,7 +83,7 @@
   <div id="collectionSheet" class="sheet-backdrop" role="dialog" aria-modal="true">
     <div class="sheet">
       <div class="handle"></div>
-      <div class="sheet-head"><h3>New collection</h3><button class="icon-button close-sheet" aria-label="Close"><i data-lucide="x"></i></button></div>
+      <div class="sheet-head"><h3 id="collectionSheetTitle">New collection</h3><button class="icon-button close-sheet" aria-label="Close"><i data-lucide="x"></i></button></div>
       <input id="collectionName" class="sheet-input" type="text" placeholder="Collection name" maxlength="28">
       <div class="icon-search search-wrap"><i data-lucide="search"></i><input id="iconSearch" class="search" type="search" placeholder="Search icons" autocomplete="off"></div>
       <div id="iconGrid" class="icon-grid"></div>
@@ -480,18 +96,42 @@
   <div id="episodeSheet" class="sheet-backdrop" role="dialog" aria-modal="true">
     <div class="sheet">
       <div class="handle"></div>
-      <div class="sheet-head"><h3>Add podcast media</h3><button class="icon-button close-sheet" aria-label="Close"><i data-lucide="x"></i></button></div>
+      <div class="sheet-head"><h3 id="episodeSheetTitle">Add podcast media</h3><button class="icon-button close-sheet" aria-label="Close"><i data-lucide="x"></i></button></div>
       <div class="source-tabs">
-        <button class="source-tab selected" data-source="spotify"><i data-lucide="link"></i> Spotify link</button>
-        <button class="source-tab" data-source="local"><i data-lucide="upload"></i> Upload audio</button>
+        <button class="source-tab selected" data-source="spotify"><i data-lucide="link"></i>Spotify</button>
+        <button class="source-tab" data-source="local"><i data-lucide="upload"></i>Local</button>
+        <button class="source-tab" data-source="online"><i data-lucide="cloud"></i>Online</button>
+      </div>
+      <div class="field-group">
+        <label class="field-label" for="episodeTitle">Episode title</label>
+        <input id="episodeTitle" class="sheet-input" type="text" placeholder="Episode title">
+        <label class="field-label" for="episodeTag">Top tag</label>
+        <input id="episodeTag" class="sheet-input" type="text" placeholder="Podcast name, category, or custom tag" maxlength="40">
       </div>
       <div id="spotifyFields" class="field-group">
-        <input id="spotifyUrl" class="sheet-input" type="url" placeholder="Spotify episode link">
-        <input id="spotifyTitle" class="sheet-input" type="text" placeholder="Episode title">
+        <label class="field-label" for="spotifyUrl">Spotify episode link</label>
+        <input id="spotifyUrl" class="sheet-input" type="url" placeholder="https://open.spotify.com/episode/...">
       </div>
       <div id="localFields" class="field-group" hidden>
+        <label class="field-label" for="audioFile">Audio file</label>
         <input id="audioFile" class="sheet-input" type="file" accept="audio/*">
-        <input id="localTitle" class="sheet-input" type="text" placeholder="Episode title">
+        <p class="sheet-note">The file stays on this device for now. Its future Supabase copy will use the same episode record.</p>
+      </div>
+      <div id="onlineFields" class="field-group" hidden>
+        <label class="field-label" for="onlineName">Online file name</label>
+        <input id="onlineName" class="sheet-input" type="text" placeholder="episode.mp3">
+        <label class="field-label" for="onlinePath">Cloud file path</label>
+        <input id="onlinePath" class="sheet-input" type="text" placeholder="user/audio/episode.mp3">
+        <p class="sheet-note">Online marks a synced Supabase file that has not been downloaded to this device.</p>
+      </div>
+      <span class="color-label">Episode image</span>
+      <div class="artwork-row">
+        <div id="artworkPreview" class="artwork-preview">EP</div>
+        <div class="artwork-actions">
+          <button id="artworkChoose" class="artwork-button"><i data-lucide="image-plus"></i>Choose custom image</button>
+          <button id="spotifyArtworkButton" class="artwork-button"><i data-lucide="refresh-cw"></i>Sync Spotify artwork</button>
+          <input id="artworkFile" type="file" accept="image/*" hidden>
+        </div>
       </div>
       <button id="saveEpisode" class="primary">Add episode</button>
     </div>
@@ -502,439 +142,13 @@
       <div class="handle"></div>
       <div class="sheet-head"><h3 id="playTitle">Play episode</h3><button class="icon-button close-sheet" aria-label="Close"><i data-lucide="x"></i></button></div>
       <div id="playerMount"></div>
-      <button id="playHere" class="primary"><i data-lucide="play"></i> Play in app</button>
-      <button id="openSpotify" class="secondary"><i data-lucide="external-link"></i> Open in Spotify</button>
+      <button id="playHere" class="primary"><i data-lucide="play"></i>Play in app</button>
+      <button id="openSpotify" class="secondary"><i data-lucide="external-link"></i>Open in Spotify</button>
     </div>
   </div>
 
   <div id="toast" class="toast">Saved</div>
   <script src="https://unpkg.com/lucide@latest"></script>
-  <script>
-    const $ = (selector) => document.querySelector(selector);
-    const $$ = (selector) => [...document.querySelectorAll(selector)];
-    const refreshIcons = () => lucide.createIcons();
-
-    const iconNames = [
-      'library','heart','bookmark','clock','headphones','mic-2','music','radio','star','sparkles','flame',
-      'bike','plane','globe-2','briefcase','brain','book-open','film','tv','gamepad-2','coffee','dumbbell',
-      'leaf','lightbulb','rocket','camera','palette','message-circle','users','folder','archive','circle-play',
-      'list-music','podcast','newspaper','graduation-cap','badge-dollar-sign','wrench','cpu'
-    ];
-    const colors = ['#5b5ce2','#ff6b6b','#f59e0b','#10b981','#0ea5e9','#8b5cf6','#ec4899','#334155'];
-
-    let episodes = [
-      { id:'e1', groups:['favorites'], source:'spotify', show:'Waveform', title:'A sample Spotify episode', time:'1h 04m', progress:18, art:'WV', artClass:'two', url:'https://open.spotify.com', embed:'https://open.spotify.com/embed/show/6o81QuW22s5m2nfcXWjucc', savedAt:5 },
-      { id:'e2', groups:['later'], source:'local', show:'Local upload', title:'Sample uploaded podcast episode', time:'12 min', progress:0, art:'UP', artClass:'five', savedAt:4, localUrl:'' }
-    ];
-    let collections = [
-      { id:'all', name:'All Episodes', icon:'library', color:'#5b5ce2' },
-      { id:'favorites', name:'Favorites', icon:'heart', color:'#ec4899' },
-      { id:'later', name:'Listen Later', icon:'clock', color:'#0ea5e9' }
-    ];
-
-    let activeCollection = null;
-    let selectedEpisode = null;
-    let selectedIcon = 'library';
-    let selectedColor = colors[0];
-    let addSource = 'spotify';
-
-    function showToast(text) {
-      const toast = $('#toast');
-      toast.textContent = text;
-      toast.classList.add('show');
-      clearTimeout(showToast.timer);
-      showToast.timer = setTimeout(() => toast.classList.remove('show'), 1700);
-    }
-
-    function showView(view) {
-      $$('.view').forEach(item => item.classList.remove('active'));
-      view.classList.add('active');
-      $$('.nav-item').forEach(item => item.classList.remove('active'));
-      if (view.id === 'libraryView') $('#libraryNav').classList.add('active');
-      if (view.id === 'profileView') $('#profileNav').classList.add('active');
-      refreshIcons();
-    }
-
-    function countFor(id) {
-      return id === 'all' ? episodes.length : episodes.filter(episode => episode.groups.includes(id)).length;
-    }
-
-    function episodeMarkup(episode) {
-      return `
-        <article class="episode" data-id="${episode.id}">
-          <button class="episode-delete" aria-label="Remove episode"><i data-lucide="x"></i></button>
-          <div class="episode-main">
-            <div class="art ${episode.artClass}">${episode.art}</div>
-            <div>
-              <p class="podcast-name">${episode.show}</p>
-              <p class="episode-title">${episode.title}</p>
-              <div class="meta">
-                <span class="source-badge"><i data-lucide="${episode.source === 'spotify' ? 'radio' : 'file-audio'}"></i>${episode.source === 'spotify' ? 'Spotify' : 'Local'}</span>
-                <span>${episode.time}</span>
-                <div class="progress"><span style="width:${episode.progress}%"></span></div>
-              </div>
-            </div>
-            <div class="chevron">›</div>
-          </div>
-        </article>`;
-    }
-
-    function wireEpisodes(container) {
-      container.querySelectorAll('.episode').forEach(card => {
-        const id = card.dataset.id;
-        card.querySelector('.episode-delete').addEventListener('click', event => {
-          event.stopPropagation();
-          episodes = episodes.filter(item => item.id !== id);
-          renderRecent();
-          renderCollections();
-          if (activeCollection) renderEpisodes();
-          showToast('Episode removed');
-        });
-        card.querySelector('.episode-main').addEventListener('click', () => {
-          const episode = episodes.find(item => item.id === id);
-          if (!episode) return;
-          selectedEpisode = episode;
-          $('#playTitle').textContent = episode.title;
-          $('#playerMount').innerHTML = '';
-          $('#playHere').hidden = false;
-          $('#openSpotify').hidden = episode.source !== 'spotify';
-          openSheet('#playSheet');
-        });
-      });
-      refreshIcons();
-    }
-
-    function renderRecent() {
-      const recent = [...episodes].sort((a,b) => b.savedAt - a.savedAt).slice(0,5);
-      $('#recentEpisodes').innerHTML = recent.map(episodeMarkup).join('');
-      wireEpisodes($('#recentEpisodes'));
-    }
-
-    function renderCollections() {
-      const term = $('#collectionSearch').value.toLowerCase();
-      const visible = collections.filter(collection => collection.name.toLowerCase().includes(term));
-      $('#groups').innerHTML = visible.map(collection => `
-        <article class="group-card" data-id="${collection.id}" draggable="true">
-          <button class="drag-handle" aria-label="Move ${collection.name}"><i data-lucide="grip-vertical"></i></button>
-          <button class="collection-delete" aria-label="Delete ${collection.name}"><i data-lucide="x"></i></button>
-          <span class="group-icon" style="background:${collection.color}"><i data-lucide="${collection.icon}"></i></span>
-          <strong>${collection.name}</strong>
-          <span class="count">${countFor(collection.id)} saved</span>
-        </article>`).join('');
-
-      $$('.group-card').forEach(card => {
-        card.addEventListener('click', event => {
-          if (!event.target.closest('button')) openCollection(card.dataset.id);
-        });
-        card.querySelector('.collection-delete').addEventListener('click', event => {
-          event.stopPropagation();
-          collections = collections.filter(item => item.id !== card.dataset.id);
-          renderCollections();
-          showToast('Collection removed');
-        });
-        enableCollectionDrag(card);
-      });
-
-      $('#noCollections').hidden = visible.length > 0;
-      refreshIcons();
-    }
-
-    function enableCollectionDrag(card) {
-      card.addEventListener('dragstart', () => card.classList.add('dragging'));
-      card.addEventListener('dragend', () => {
-        card.classList.remove('dragging');
-        syncCollectionOrder();
-      });
-      card.addEventListener('dragover', event => {
-        event.preventDefault();
-        const dragging = $('.group-card.dragging');
-        if (!dragging || dragging === card) return;
-        const rect = card.getBoundingClientRect();
-        $('#groups').insertBefore(dragging, event.clientY < rect.top + rect.height / 2 ? card : card.nextSibling);
-      });
-
-      const handle = card.querySelector('.drag-handle');
-      let moving = false;
-      handle.addEventListener('pointerdown', event => {
-        moving = true;
-        handle.setPointerCapture(event.pointerId);
-        card.classList.add('dragging');
-        event.stopPropagation();
-      });
-      handle.addEventListener('pointermove', event => {
-        if (!moving) return;
-        const target = document.elementFromPoint(event.clientX, event.clientY)?.closest('.group-card');
-        if (!target || target === card) return;
-        const rect = target.getBoundingClientRect();
-        $('#groups').insertBefore(card, event.clientY < rect.top + rect.height / 2 ? target : target.nextSibling);
-      });
-      handle.addEventListener('pointerup', () => {
-        moving = false;
-        card.classList.remove('dragging');
-        syncCollectionOrder();
-      });
-    }
-
-    function syncCollectionOrder() {
-      const order = $$('.group-card').map(card => card.dataset.id);
-      collections.sort((a,b) => order.indexOf(a.id) - order.indexOf(b.id));
-      showToast('Collection order updated');
-    }
-
-    function openCollection(id) {
-      activeCollection = collections.find(collection => collection.id === id);
-      if (!activeCollection) return;
-      $('#collectionPageTitle').textContent = activeCollection.name;
-      $('#collectionLargeIcon').style.background = activeCollection.color;
-      $('#collectionLargeIcon').innerHTML = `<i data-lucide="${activeCollection.icon}"></i>`;
-      $('#episodeSearch').value = '';
-      $('#showSpotify').checked = true;
-      $('#showLocal').checked = true;
-      renderEpisodes();
-      showView($('#collectionView'));
-    }
-
-    function renderEpisodes() {
-      if (!activeCollection) return;
-      const term = $('#episodeSearch').value.toLowerCase();
-      const showSpotify = $('#showSpotify').checked;
-      const showLocal = $('#showLocal').checked;
-      let list = activeCollection.id === 'all' ? episodes : episodes.filter(episode => episode.groups.includes(activeCollection.id));
-      list = list.filter(episode =>
-        (episode.show + ' ' + episode.title).toLowerCase().includes(term) &&
-        (episode.source === 'spotify' ? showSpotify : showLocal)
-      );
-      $('#episodes').innerHTML = list.map(episodeMarkup).join('');
-      $('#emptyCollection').hidden = list.length > 0;
-      $('#filterButton').classList.toggle('active', !(showSpotify && showLocal));
-      wireEpisodes($('#episodes'));
-    }
-
-    function renderIconGrid(term = '') {
-      const matches = iconNames.filter(name => name.includes(term.toLowerCase()));
-      $('#iconGrid').innerHTML = matches.map(name => `
-        <button class="icon-choice ${name === selectedIcon ? 'selected' : ''}" data-icon="${name}" title="${name}">
-          <i data-lucide="${name}"></i>
-        </button>`).join('');
-      $$('.icon-choice').forEach(button => button.addEventListener('click', () => {
-        selectedIcon = button.dataset.icon;
-        renderIconGrid($('#iconSearch').value);
-      }));
-      refreshIcons();
-    }
-
-    function renderColors() {
-      $('#colorGrid').innerHTML = colors.map(color => `
-        <button class="color-choice ${color === selectedColor ? 'selected' : ''}" style="--swatch:${color}" data-color="${color}" aria-label="Choose ${color}"></button>`).join('');
-      $$('.color-choice').forEach(button => button.addEventListener('click', () => {
-        selectedColor = button.dataset.color;
-        renderColors();
-      }));
-    }
-
-    function openSheet(selector) {
-      $(selector).classList.add('open');
-      refreshIcons();
-    }
-
-    function closeSheets() {
-      $$('.sheet-backdrop').forEach(sheet => sheet.classList.remove('open'));
-      $('#playerMount').innerHTML = '';
-    }
-
-    $('#libraryNav').addEventListener('click', () => showView($('#libraryView')));
-    $('#profileNav').addEventListener('click', () => showView($('#profileView')));
-    $('#headerAvatar').addEventListener('click', () => showView($('#profileView')));
-    $('#backButton').addEventListener('click', () => showView($('#libraryView')));
-    $('#collectionSearch').addEventListener('input', renderCollections);
-    $('#episodeSearch').addEventListener('input', renderEpisodes);
-    $('#showSpotify').addEventListener('change', renderEpisodes);
-    $('#showLocal').addEventListener('change', renderEpisodes);
-
-    $('#filterButton').addEventListener('click', event => {
-      event.stopPropagation();
-      $('#filterPopover').classList.toggle('open');
-    });
-    document.addEventListener('click', event => {
-      if (!event.target.closest('.collection-actions')) $('#filterPopover').classList.remove('open');
-    });
-
-    $('#addGroup').addEventListener('click', () => {
-      selectedIcon = 'library';
-      selectedColor = colors[0];
-      $('#collectionName').value = '';
-      $('#iconSearch').value = '';
-      renderIconGrid();
-      renderColors();
-      openSheet('#collectionSheet');
-      setTimeout(() => $('#collectionName').focus(), 180);
-    });
-
-    $('#addEpisode').addEventListener('click', () => {
-      addSource = 'spotify';
-      $$('.source-tab').forEach(button => button.classList.toggle('selected', button.dataset.source === 'spotify'));
-      $('#spotifyFields').hidden = false;
-      $('#localFields').hidden = true;
-      $('#spotifyUrl').value = '';
-      $('#spotifyTitle').value = '';
-      $('#localTitle').value = '';
-      $('#audioFile').value = '';
-      openSheet('#episodeSheet');
-    });
-
-    $$('.source-tab').forEach(button => button.addEventListener('click', () => {
-      addSource = button.dataset.source;
-      $$('.source-tab').forEach(item => item.classList.toggle('selected', item === button));
-      $('#spotifyFields').hidden = addSource !== 'spotify';
-      $('#localFields').hidden = addSource !== 'local';
-    }));
-
-    $('#iconSearch').addEventListener('input', event => renderIconGrid(event.target.value));
-
-    $('#createCollection').addEventListener('click', () => {
-      const name = $('#collectionName').value.trim();
-      if (!name) {
-        $('#collectionName').focus();
-        return;
-      }
-      collections.push({ id: crypto.randomUUID(), name, icon: selectedIcon, color: selectedColor });
-      renderCollections();
-      closeSheets();
-      showToast('Collection created');
-    });
-
-    $('#saveEpisode').addEventListener('click', () => {
-      const isSpotify = addSource === 'spotify';
-      const file = $('#audioFile').files?.[0];
-      if (!isSpotify && !file) {
-        showToast('Choose an audio file');
-        return;
-      }
-      const title = (isSpotify ? $('#spotifyTitle').value : $('#localTitle').value).trim() || (file?.name ?? 'Untitled episode');
-      const group = activeCollection && activeCollection.id !== 'all' ? activeCollection.id : 'all';
-      const localUrl = file ? URL.createObjectURL(file) : '';
-      episodes.unshift({
-        id: crypto.randomUUID(),
-        groups: [group],
-        source: addSource,
-        show: isSpotify ? 'Spotify' : 'Local upload',
-        title,
-        time: 'Not started',
-        progress: 0,
-        art: isSpotify ? 'SP' : 'UP',
-        artClass: isSpotify ? 'one' : 'five',
-        url: $('#spotifyUrl').value || 'https://open.spotify.com',
-        embed: 'https://open.spotify.com/embed/show/6o81QuW22s5m2nfcXWjucc',
-        localUrl,
-        savedAt: Date.now()
-      });
-      renderRecent();
-      renderCollections();
-      if (activeCollection) renderEpisodes();
-      closeSheets();
-      showToast('Episode added');
-    });
-
-    $('#playHere').addEventListener('click', () => {
-      if (!selectedEpisode) return;
-      if (selectedEpisode.source === 'spotify') {
-        $('#playerMount').innerHTML = `<iframe class="player-frame" src="${selectedEpisode.embed}" allow="autoplay;clipboard-write;encrypted-media;fullscreen;picture-in-picture" loading="lazy"></iframe>`;
-      } else if (selectedEpisode.localUrl) {
-        $('#playerMount').innerHTML = `<audio class="local-player" controls autoplay src="${selectedEpisode.localUrl}"></audio>`;
-      } else {
-        $('#playerMount').innerHTML = '<p class="sheet-copy">This sample local file is UI-only and has no audio attached.</p>';
-      }
-      $('#playHere').hidden = true;
-    });
-
-    $('#openSpotify').addEventListener('click', () => {
-      if (selectedEpisode?.url) window.open(selectedEpisode.url, '_blank');
-    });
-
-    $$('.close-sheet').forEach(button => button.addEventListener('click', closeSheets));
-    $$('.sheet-backdrop').forEach(sheet => sheet.addEventListener('click', event => {
-      if (event.target === sheet) closeSheets();
-    }));
-
-    let nickname = localStorage.getItem('geodetaNickname') || 'Som';
-    let photo = localStorage.getItem('geodetaProfilePhoto');
-    $('#nickname').value = nickname;
-
-    function updateProfileUI() {
-      nickname = $('#nickname').value.trim() || 'S';
-      localStorage.setItem('geodetaNickname', nickname);
-      $('#profileInitial').textContent = nickname[0].toUpperCase();
-      $('#headerAvatar').textContent = nickname[0].toUpperCase();
-      if (photo) {
-        $('#profilePhoto').querySelectorAll('img').forEach(image => image.remove());
-        const image = document.createElement('img');
-        image.src = photo;
-        image.alt = '';
-        $('#profilePhoto').prepend(image);
-        $('#headerAvatar').innerHTML = `<img src="${photo}" alt="">`;
-      }
-    }
-
-    $('#nickname').addEventListener('input', updateProfileUI);
-    $('#photoEdit').addEventListener('click', () => $('#photoInput').click());
-    $('#photoInput').addEventListener('change', event => {
-      const file = event.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        photo = reader.result;
-        localStorage.setItem('geodetaProfilePhoto', photo);
-        updateProfileUI();
-        showToast('Profile picture saved locally');
-      };
-      reader.readAsDataURL(file);
-    });
-    updateProfileUI();
-
-    function setupLinkButton(selector, service) {
-      const button = $(selector);
-      const key = `geodeta${service}Linked`;
-      let linked = localStorage.getItem(key) === 'true';
-      function draw() {
-        button.textContent = linked ? 'Unlink' : `Link to ${service}`;
-        button.classList.toggle('unlink', linked);
-      }
-      draw();
-      button.addEventListener('click', () => {
-        linked = !linked;
-        localStorage.setItem(key, linked);
-        draw();
-        showToast(`${service}${linked ? ' linked' : ' unlinked'}`);
-      });
-    }
-
-    setupLinkButton('#googleLink', 'Google');
-    setupLinkButton('#spotifyLink', 'Spotify');
-
-    function runSync(type, quiet = false) {
-      const status = $('#syncStatus');
-      status.innerHTML = `<i data-lucide="loader-circle"></i> Syncing ${type}…`;
-      refreshIcons();
-      setTimeout(() => {
-        status.innerHTML = '<i data-lucide="check-circle-2"></i> Synced just now';
-        refreshIcons();
-        if (!quiet) showToast(type === 'all' ? 'Everything synced' : `${type[0].toUpperCase()}${type.slice(1)} synced`);
-      }, 850);
-    }
-
-    $$('.sync-button').forEach(button => button.addEventListener('click', () => runSync(button.dataset.sync)));
-    setTimeout(() => {
-      runSync('data', true);
-      setTimeout(() => runSync('spotify', true), 900);
-    }, 450);
-    setTimeout(() => {
-      const pending = localStorage.getItem('geodetaPendingFiles') === 'true';
-      if (pending && confirm('New files were added to your account. Sync files now?')) runSync('files');
-    }, 1800);
-
-    renderCollections();
-    renderRecent();
-    refreshIcons();
-  </script>
+  <script src="./app.js"></script>
 </body>
 </html>

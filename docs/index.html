@@ -7,9 +7,11 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Geodeta Media">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <title>Geodeta Media</title>
-  <link rel="stylesheet" href="./app.css">
-  <link rel="stylesheet" href="./app-overrides.css">
+  <link rel="stylesheet" href="./app.css?v=20260714-3">
+  <link rel="stylesheet" href="./app-overrides.css?v=20260714-3">
+  <link rel="stylesheet" href="./update.css?v=20260714-3">
 </head>
 <body>
   <main class="app">
@@ -71,6 +73,15 @@
         <button class="sync-button" data-sync="files"><i data-lucide="cloud-upload"></i>Sync Files</button>
         <button class="sync-button" data-sync="data"><i data-lucide="database"></i>Sync Data</button>
         <button class="sync-button" data-sync="spotify"><i data-lucide="radio"></i>Sync Spotify</button>
+      </div>
+      <div class="app-maintenance">
+        <div class="section-head"><h2>App</h2></div>
+        <div class="settings-card">
+          <div class="settings-row">
+            <div class="settings-copy"><strong>Hard refresh</strong><span>Clear cached app files and reload the latest deployed version.</span></div>
+            <button id="hardRefresh" class="action-button hard-refresh-button"><i data-lucide="rotate-cw"></i>Refresh</button>
+          </div>
+        </div>
       </div>
     </section>
   </main>
@@ -148,11 +159,26 @@
     </div>
   </div>
 
+  <div id="updatePopup" class="update-popup-backdrop" role="dialog" aria-modal="true" aria-labelledby="updateTitle" hidden>
+    <div class="update-popup">
+      <div class="update-popup-icon"><i data-lucide="cloud-download"></i></div>
+      <p class="eyebrow">UPDATE AVAILABLE</p>
+      <h3 id="updateTitle">A newer version is live</h3>
+      <p id="updateMessage" class="update-popup-copy">Refresh Geodeta Media to load the latest changes.</p>
+      <span id="updateCommit" class="update-popup-meta"></span>
+      <div class="update-popup-actions">
+        <button id="updateLater" class="update-later">Later</button>
+        <button id="updateNow" class="update-now">Update now</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toast" class="toast">Saved</div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
-  <script src="./supabase.js"></script>
-  <script src="./app.js"></script>
-  <script src="./profile-autosync.js"></script>
+  <script src="./supabase.js?v=20260714-3"></script>
+  <script src="./app.js?v=20260714-3"></script>
+  <script src="./profile-autosync.js?v=20260714-3"></script>
+  <script src="./update.js?v=20260714-3"></script>
 </body>
 </html>

@@ -1,0 +1,95 @@
+/* Episode metadata/sync layout overrides */
+.episode{
+  grid-template-columns:72px minmax(0,1fr) 92px;
+  gap:13px;
+  padding:10px;
+}
+.episode-copy{min-width:0}
+.episode-side{
+  min-width:0;
+  align-self:stretch;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:8px;
+  padding-top:29px;
+}
+.episode-side .chevron{
+  align-self:center;
+  font-size:17px;
+  line-height:1;
+}
+.episode-time{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  white-space:nowrap;
+  color:var(--muted);
+}
+.episode-time svg{
+  width:12px;
+  height:12px;
+}
+.episode-sync{
+  min-height:26px;
+  max-width:92px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:5px;
+  padding:5px 8px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:750;
+  white-space:nowrap;
+  background:rgba(139,92,246,.13);
+  color:#8b5cf6;
+}
+.episode-sync svg{
+  width:13px;
+  height:13px;
+  flex:0 0 auto;
+}
+.episode-sync.is-synced{
+  background:rgba(236,72,153,.13);
+  color:#db2777;
+}
+.episode-sync.is-pending{
+  background:rgba(139,92,246,.14);
+  color:#7c3aed;
+}
+.episode-sync.is-syncing{
+  background:rgba(139,92,246,.14);
+  color:#7c3aed;
+}
+.episode-sync.is-syncing svg,
+.status-pill .lucide-loader-circle{
+  animation:syncSpin .9s linear infinite;
+}
+.episode-sync.is-error{
+  background:rgba(229,72,77,.13);
+  color:var(--danger);
+}
+.episode-sync.is-local{
+  background:rgba(120,120,128,.13);
+  color:var(--muted);
+}
+@keyframes syncSpin{to{transform:rotate(360deg)}}
+
+@media(max-width:520px){
+  .episode{
+    grid-template-columns:64px minmax(0,1fr) 72px;
+    gap:10px;
+  }
+  .art{width:64px}
+  .episode-side{padding-top:28px}
+  .episode-sync{
+    max-width:72px;
+    padding:5px 7px;
+    font-size:10px;
+  }
+  .meta{gap:6px}
+  .source-badge{padding-inline:6px}
+  .episode-time{font-size:11px}
+}

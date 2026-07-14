@@ -9,6 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="Geodeta Media">
   <title>Geodeta Media</title>
   <link rel="stylesheet" href="./app.css">
+  <link rel="stylesheet" href="./app-overrides.css">
 </head>
 <body>
   <main class="app">
@@ -115,7 +116,7 @@
       <div id="localFields" class="field-group" hidden>
         <label class="field-label" for="audioFile">Audio file</label>
         <input id="audioFile" class="sheet-input" type="file" accept="audio/*">
-        <p class="sheet-note">The file stays on this device for now. Its future Supabase copy will use the same episode record.</p>
+        <p class="sheet-note">When you are signed in, the audio file uploads to your private Supabase storage automatically.</p>
       </div>
       <div id="onlineFields" class="field-group" hidden>
         <label class="field-label" for="onlineName">Online file name</label>

@@ -1,0 +1,8 @@
+/* Spotify integration */
+.source-tab[data-source="online"],#onlineFields{display:none!important}
+.spotify-syncing svg,[data-sync="spotify"].spotify-syncing svg{animation:spotifySpin .85s linear infinite}
+.spotify-linked{background:rgba(30,215,96,.13)!important;color:#168c43!important}
+.spotify-needs-setup{background:rgba(245,158,11,.14)!important;color:#a16207!important}
+.spotify-status-note{display:block;margin-top:4px;color:var(--muted);font-size:11px;line-height:1.35}
+@keyframes spotifySpin{to{transform:rotate(360deg)}}
+@media(prefers-color-scheme:dark){.spotify-linked{color:#56df87!important}.spotify-needs-setup{color:#f6bd52!important}}

@@ -1,9 +1,11 @@
 (() => {
   const CURRENT_BUILD = {
-    'docs/index.html': '61863e1c4b9b4964fbdcc07b7ff7e6851614c063',
+    'docs/index.html': '68fa75d0ab9f3e88c8425a2fab38be51e7583a01',
     'docs/app.css': 'fa93056b25a4085aee22be65d78276b759a325e1',
     'docs/app-overrides.css': '1cd35e299ba7a0be0636f70079538e322fe24900',
     'docs/app.js': '2ccb2ed1a0efacc6311648b06aab29cb2daccedc',
+    'docs/library-explorer.css': 'dd421cd7a390d778c30a311bc0915823999cb77b',
+    'docs/library-explorer.js': 'bdcc567c555e879383c22f34d7ef27645681a0eb',
     'docs/profile-autosync.js': '18d913c5cebf2bb457473c0033bdfcd9e76eb279',
     'docs/supabase.js': 'dcea987629c7e58997a728f21e9fd53a109f77e8',
     'docs/update.css': '729a2dd2eb41ae88b2409a924f1339d0ba2e9f6a'

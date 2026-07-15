@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Geodeta Media large icon template</title>
+  <desc id="desc">Purple rounded square with a white media waveform.</desc>
+  <defs>
+    <linearGradient id="bg" x1="64" y1="48" x2="448" y2="469" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7778ff"/>
+      <stop offset="1" stop-color="#4c4dd1"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <circle cx="256" cy="256" r="144" fill="#ffffff" fill-opacity="0.12"/>
+  <rect x="154" y="213" width="32" height="86" rx="16" fill="#fff"/>
+  <rect x="208" y="171" width="32" height="170" rx="16" fill="#fff"/>
+  <rect x="262" y="194" width="32" height="124" rx="16" fill="#fff"/>
+  <rect x="316" y="147" width="32" height="218" rx="16" fill="#fff"/>
+</svg>

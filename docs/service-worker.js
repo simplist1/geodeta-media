@@ -1,4 +1,4 @@
-const CACHE_NAME = 'geodeta-media-shell-20260715-1';
+const CACHE_NAME = 'geodeta-media-shell-20260715-2';
 const CACHE_PREFIX = 'geodeta-media-shell-';
 
 const APP_SHELL = [

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Geodeta Media maskable icon template</title>
+  <desc id="desc">Full-bleed purple app icon with centered white waveform inside the maskable safe area.</desc>
+  <defs>
+    <linearGradient id="bg" x1="32" y1="20" x2="484" y2="496" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7778ff"/>
+      <stop offset="1" stop-color="#4142bd"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <circle cx="256" cy="256" r="154" fill="#ffffff" fill-opacity="0.12"/>
+  <circle cx="256" cy="256" r="126" fill="#ffffff" fill-opacity="0.08"/>
+  <rect x="166" y="218" width="28" height="76" rx="14" fill="#fff"/>
+  <rect x="214" y="181" width="28" height="150" rx="14" fill="#fff"/>
+  <rect x="262" y="201" width="28" height="110" rx="14" fill="#fff"/>
+  <rect x="310" y="160" width="28" height="192" rx="14" fill="#fff"/>
+</svg>

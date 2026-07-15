@@ -1,0 +1,6 @@
+/* Android PWA install controls */
+#installApp{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-width:96px}
+#installApp svg{width:16px;height:16px}
+#installApp.pwa-ready{background:var(--accent);color:#fff}
+#installApp.pwa-installed{background:rgba(48,176,96,.13);color:#208047;cursor:default}
+@media(prefers-color-scheme:dark){#installApp.pwa-installed{color:#65d990}}

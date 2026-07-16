@@ -1,4 +1,4 @@
-const CACHE_NAME = 'geodeta-media-shell-20260715-2';
+const CACHE_NAME = 'geodeta-media-shell-20260716-4';
 const CACHE_PREFIX = 'geodeta-media-shell-';
 
 const APP_SHELL = [
@@ -44,7 +44,16 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('message', event => {
-  if(event.data?.type === 'SKIP_WAITING') self.skipWaiting();
+  if(event.data?.type === 'SKIP_WAITING'){
+    self.skipWaiting();
+    return;
+  }
+
+  if(event.data?.type === 'CLEAR_CACHES'){
+    event.waitUntil(
+      caches.keys().then(names => Promise.all(names.map(name => caches.delete(name))))
+    );
+  }
 });
 
 self.addEventListener('fetch', event => {
@@ -67,6 +76,7 @@ self.addEventListener('fetch', event => {
 
 async function networkFirst(request, fallbackPath=''){
   const cache = await caches.open(CACHE_NAME);
+
   try{
     const response = await fetch(request, {cache:'no-store'});
     if(response.ok) await cache.put(request, response.clone());
@@ -74,10 +84,12 @@ async function networkFirst(request, fallbackPath=''){
   }catch(error){
     const cached = await cache.match(request, {ignoreSearch:true});
     if(cached) return cached;
+
     if(fallbackPath){
       const fallback = await cache.match(fallbackPath, {ignoreSearch:true});
       if(fallback) return fallback;
     }
+
     throw error;
   }
 }

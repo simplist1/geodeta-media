@@ -1,6 +1,23 @@
-/* Android PWA install controls */
+/* Cross-platform PWA install controls */
 #installApp{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-width:96px}
 #installApp svg{width:16px;height:16px}
 #installApp.pwa-ready{background:var(--accent);color:#fff}
+#installApp.pwa-ios{background:rgba(91,92,230,.13);color:#4d4ec7}
 #installApp.pwa-installed{background:rgba(48,176,96,.13);color:#208047;cursor:default}
-@media(prefers-color-scheme:dark){#installApp.pwa-installed{color:#65d990}}
+.ios-install-backdrop{position:fixed;inset:0;z-index:1200;display:flex;align-items:flex-end;justify-content:center;padding:16px;background:rgba(20,20,28,.42);backdrop-filter:blur(8px);opacity:0;transition:opacity .18s ease}
+.ios-install-backdrop[hidden]{display:none}
+.ios-install-backdrop.is-open{opacity:1}
+.ios-install-sheet{width:min(560px,100%);max-height:min(86vh,720px);overflow:auto;border-radius:28px 28px 22px 22px;padding:10px 18px calc(18px + env(safe-area-inset-bottom));background:var(--surface,#fff);box-shadow:0 24px 70px rgba(0,0,0,.28);transform:translateY(24px);transition:transform .18s ease}
+.ios-install-backdrop.is-open .ios-install-sheet{transform:translateY(0)}
+.ios-install-handle{width:42px;height:5px;border-radius:999px;margin:2px auto 14px;background:rgba(120,120,128,.28)}
+.ios-install-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px}
+.ios-install-head h3{margin:3px 0 0;font-size:22px;line-height:1.15}
+.ios-install-steps{display:grid;gap:10px}
+.ios-install-step{display:grid;grid-template-columns:32px 1fr 28px;align-items:center;gap:12px;padding:14px;border-radius:18px;background:rgba(120,120,128,.09)}
+.ios-install-step>span{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--accent);color:#fff;font-weight:700}
+.ios-install-step strong{display:block;font-size:14px}
+.ios-install-step p{margin:3px 0 0;color:var(--muted);font-size:12px;line-height:1.4}
+.ios-install-step>svg{width:24px;height:24px;color:var(--accent)}
+.ios-install-note{margin:14px 2px;color:var(--muted);font-size:12px;line-height:1.45}
+#dismissIOSInstallGuide{width:100%}
+@media(prefers-color-scheme:dark){#installApp.pwa-installed{color:#65d990}#installApp.pwa-ios{color:#9b9cff}.ios-install-sheet{background:#1d1d20}.ios-install-step{background:rgba(255,255,255,.07)}}

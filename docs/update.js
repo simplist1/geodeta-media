@@ -13,7 +13,7 @@
     'docs/library-explorer.js': 'bdcc567c555e879383c22f34d7ef27645681a0eb',
     'docs/profile-autosync.js': '18d913c5cebf2bb457473c0033bdfcd9e76eb279',
     'docs/pwa.css': 'f0069d8b38bac770fac6e614d1ecc4a77aaea0fc',
-    'docs/pwa.js': '4769e5bc89510ea18a2fca878312cf6ea6f2cca9',
+    'docs/pwa.js': '113f7dca94af063cb3428e3eab87d8c7150dc8f0',
     'docs/spotify-integration.css': 'b13e72069d89b719ed685aaaede62f6641b6b419',
     'docs/spotify-integration.js': '1ac00a2bb4096506f09593fe7c0be3cf0b9ed6ce',
     'docs/supabase.js': 'dcea987629c7e58997a728f21e9fd53a109f77e8',

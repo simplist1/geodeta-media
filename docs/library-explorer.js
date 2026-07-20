@@ -263,9 +263,27 @@
   };
 
   enableCollectionDrag = function(card,parent,mount){
-    card.addEventListener('dragstart',() => card.classList.add('dragging'));
-    card.addEventListener('dragend',() => { card.classList.remove('dragging'); syncCollectionOrder(parent,mount); });
+    let touchPointerActive = false;
+    card.addEventListener('pointerdown',event => {
+      touchPointerActive = event.pointerType === 'touch';
+    },true);
+    card.addEventListener('pointerup',() => { touchPointerActive = false; },true);
+    card.addEventListener('pointercancel',() => { touchPointerActive = false; },true);
+
+    card.addEventListener('dragstart',event => {
+      if(touchPointerActive || event.pointerType === 'touch'){
+        event.preventDefault();
+        return;
+      }
+      card.classList.add('dragging');
+    });
+    card.addEventListener('dragend',() => {
+      if(!card.classList.contains('dragging')) return;
+      card.classList.remove('dragging');
+      syncCollectionOrder(parent,mount);
+    });
     card.addEventListener('dragover',event => {
+      if(touchPointerActive) return;
       event.preventDefault();
       const moving = mount.querySelector('.dragging');
       if(!moving || moving === card) return;
@@ -274,23 +292,49 @@
     });
     const handle = card.querySelector('.drag-handle');
     let moving = false;
-    handle?.addEventListener('pointerdown',event => { moving = true; handle.setPointerCapture(event.pointerId); card.classList.add('dragging'); event.stopPropagation(); });
+    handle?.addEventListener('pointerdown',event => {
+      if(event.pointerType === 'touch') return;
+      moving = true;
+      handle.setPointerCapture(event.pointerId);
+      card.classList.add('dragging');
+      event.stopPropagation();
+    });
     handle?.addEventListener('pointermove',event => {
-      if(!moving) return;
+      if(!moving || event.pointerType === 'touch') return;
       const target = document.elementFromPoint(event.clientX,event.clientY)?.closest('.explorer-category');
       if(target && target !== card && target.parentElement === mount){
         const rect = target.getBoundingClientRect();
         mount.insertBefore(card,event.clientY < rect.top + rect.height / 2 ? target : target.nextSibling);
       }
     });
-    handle?.addEventListener('pointerup',() => { moving = false; card.classList.remove('dragging'); syncCollectionOrder(parent,mount); });
+    const finishPointerMove = () => {
+      if(!moving) return;
+      moving = false;
+      card.classList.remove('dragging');
+      syncCollectionOrder(parent,mount);
+    };
+    handle?.addEventListener('pointerup',finishPointerMove);
+    handle?.addEventListener('pointercancel',finishPointerMove);
   };
 
   syncCollectionOrder = function(parent=null,mount=document.querySelector('#groups')){
-    const ids = [...mount.querySelectorAll('.explorer-category')].map(card => card.dataset.id).filter(id => id !== ROOT);
-    const ordered = ids.map(byId).filter(Boolean);
-    const others = state.collections.filter(item => !ordered.includes(item));
-    state.collections = [...others,...ordered];
+    const normalizedParent = parent || null;
+    const ids = [...mount.querySelectorAll('.explorer-category')]
+      .map(card => card.dataset.id)
+      .filter(id => id !== ROOT && parentOf(byId(id)) === normalizedParent);
+    const byCollectionId = new Map(state.collections.map(item => [item.id,item]));
+    const visibleSet = new Set(ids);
+    const slots = [];
+    state.collections.forEach((item,index) => {
+      if(visibleSet.has(item.id) && parentOf(item) === normalizedParent) slots.push(index);
+    });
+    const previous = slots.map(index => state.collections[index]?.id);
+    if(previous.every((id,index) => id === ids[index])) return;
+    ids.forEach((id,index) => {
+      if(slots[index] !== undefined && byCollectionId.has(id)){
+        state.collections[slots[index]] = byCollectionId.get(id);
+      }
+    });
     saveState();
     queueAutoSync();
     showToast('Category order updated');

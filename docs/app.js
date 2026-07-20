@@ -294,13 +294,28 @@ function renderCollections(){
 }
 
 function enableCollectionDrag(card){
-  card.addEventListener('dragstart', () => card.classList.add('dragging'));
+  let touchPointerActive = false;
+  card.addEventListener('pointerdown',event => {
+    touchPointerActive = event.pointerType === 'touch';
+  },true);
+  card.addEventListener('pointerup',() => { touchPointerActive = false; },true);
+  card.addEventListener('pointercancel',() => { touchPointerActive = false; },true);
+
+  card.addEventListener('dragstart', event => {
+    if(touchPointerActive || event.pointerType === 'touch'){
+      event.preventDefault();
+      return;
+    }
+    card.classList.add('dragging');
+  });
   card.addEventListener('dragend', () => {
+    if(!card.classList.contains('dragging')) return;
     card.classList.remove('dragging');
     syncCollectionOrder();
   });
 
   card.addEventListener('dragover', event => {
+    if(touchPointerActive) return;
     event.preventDefault();
     const dragging = $('.group-card.dragging');
     if(!dragging || dragging === card) return;
@@ -316,6 +331,7 @@ function enableCollectionDrag(card){
   let moving = false;
 
   handle.addEventListener('pointerdown', event => {
+    if(event.pointerType === 'touch') return;
     moving = true;
     handle.setPointerCapture(event.pointerId);
     card.classList.add('dragging');
@@ -323,7 +339,7 @@ function enableCollectionDrag(card){
   });
 
   handle.addEventListener('pointermove', event => {
-    if(!moving) return;
+    if(!moving || event.pointerType === 'touch') return;
 
     const target = document
       .elementFromPoint(event.clientX, event.clientY)
@@ -338,11 +354,14 @@ function enableCollectionDrag(card){
     }
   });
 
-  handle.addEventListener('pointerup', () => {
+  const finishPointerMove = () => {
+    if(!moving) return;
     moving = false;
     card.classList.remove('dragging');
     syncCollectionOrder();
-  });
+  };
+  handle.addEventListener('pointerup',finishPointerMove);
+  handle.addEventListener('pointercancel',finishPointerMove);
 }
 
 function syncCollectionOrder(){

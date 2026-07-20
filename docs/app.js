@@ -995,6 +995,39 @@ function collectionRows(userId){
     }));
 }
 
+function collectionInsertBatches(rows){
+  const knownIds = new Set(rows.map(row => row.id));
+  const insertedIds = new Set();
+  let pending = [...rows];
+  const batches = [];
+
+  for(const row of rows){
+    if(row.parent_id && !knownIds.has(row.parent_id)){
+      throw new Error(`Collection “${row.name}” has a missing parent`);
+    }
+    if(row.parent_id === row.id){
+      throw new Error(`Collection “${row.name}” cannot be its own parent`);
+    }
+  }
+
+  while(pending.length){
+    const batch = pending.filter(row =>
+      !row.parent_id || insertedIds.has(row.parent_id)
+    );
+
+    if(!batch.length){
+      throw new Error('Collection nesting contains a cycle');
+    }
+
+    batches.push(batch);
+    batch.forEach(row => insertedIds.add(row.id));
+    const batchIds = new Set(batch.map(row => row.id));
+    pending = pending.filter(row => !batchIds.has(row.id));
+  }
+
+  return batches;
+}
+
 function episodeRows(userId){
   return state.episodes.map(ep => ({
     id: ep.id,
@@ -1039,34 +1072,48 @@ async function uploadLocalData(){
   saveState(false);
 
   const userId = currentUser.id;
+  const collections = collectionRows(userId);
+  const collectionBatches = collectionInsertBatches(collections);
+  const episodes = episodeRows(userId);
+  const relations = relationRows();
+  const collectionIds = new Set(collections.map(row => row.id));
+  const episodeIds = new Set(episodes.map(row => row.id));
+
+  if(relations.some(row =>
+    !collectionIds.has(row.collection_id) ||
+    !episodeIds.has(row.episode_id)
+  )){
+    throw new Error('An episode references a missing collection');
+  }
+
   await saveProfileToSupabase({uploadPhoto:true});
 
-  let result = await db()
-    .from('collection_episodes')
-    .delete()
-    .in('episode_id', state.episodes.filter(ep => isUuid(ep.id)).map(ep => ep.id));
+  let result;
+  if(episodeIds.size){
+    result = await db()
+      .from('collection_episodes')
+      .delete()
+      .in('episode_id',[...episodeIds]);
 
-  if(result.error) throw result.error;
-
-  result = await db().from('episodes').delete().eq('user_id', userId);
-  if(result.error) throw result.error;
-
-  result = await db().from('collections').delete().eq('user_id', userId);
-  if(result.error) throw result.error;
-
-  const collections = collectionRows(userId);
-  if(collections.length){
-    result = await db().from('collections').insert(collections);
     if(result.error) throw result.error;
   }
 
-  const episodes = episodeRows(userId);
+  result = await db().from('episodes').delete().eq('user_id',userId);
+  if(result.error) throw result.error;
+
+  result = await db().from('collections').delete().eq('user_id',userId);
+  if(result.error) throw result.error;
+
+  for(const batch of collectionBatches){
+    result = await db().from('collections').insert(batch);
+    if(result.error) throw result.error;
+  }
+
   if(episodes.length){
     result = await db().from('episodes').insert(episodes);
     if(result.error) throw result.error;
   }
 
-  const relations = relationRows();
   if(relations.length){
     result = await db().from('collection_episodes').insert(relations);
     if(result.error) throw result.error;
@@ -1076,7 +1123,7 @@ async function uploadLocalData(){
     ep.syncStatus = 'synced';
   });
 
-  localStorage.setItem(DIRTY_KEY, 'false');
+  localStorage.setItem(DIRTY_KEY,'false');
   saveState(false);
 }
 

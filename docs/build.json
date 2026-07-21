@@ -1,5 +1,5 @@
 {
-  "id": "2026.07.20.3",
-  "message": "Parent-first nested collection sync",
-  "releasedAt": "2026-07-20T13:42:59.388Z"
+  "id": "2026.07.21.1",
+  "message": "Versioned transactional sync",
+  "releasedAt": "2026-07-21T12:48:29.485Z"
 }

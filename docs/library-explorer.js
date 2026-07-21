@@ -168,6 +168,9 @@
         const nested = descendants(id);
         openDelete(`Delete “${item.name}”?`,`Episodes stay in the library but are removed from this category.${nested.size ? ` This also removes ${nested.size} nested categor${nested.size === 1 ? 'y' : 'ies'}.` : ''}`,async () => {
           const removed = new Set([id,...nested]);
+          state.collections
+            .filter(category => removed.has(category.id))
+            .forEach(category => window.mediaSync?.registerCollectionDeletion(category));
           state.collections = state.collections.filter(category => !removed.has(category.id));
           state.episodes.forEach(ep => {
             ep.groups = (ep.groups || []).filter(group => !removed.has(group));
@@ -179,7 +182,7 @@
             showView(document.querySelector('#libraryView'));
           }
           renderAll();
-          if(currentUser && isUuid(id)) await db().from('collections').delete().eq('id',id);
+          if(currentUser) queueAutoSync();
           showToast('Category deleted');
         });
       });
@@ -396,7 +399,7 @@
   downloadRemoteData = async function(){
     const result = await originalDownloadRemoteData();
     if(!currentUser) return result;
-    const {data,error} = await db().from('collections').select('id,parent_id').eq('user_id',currentUser.id);
+    const {data,error} = await db().from('collections').select('id,parent_id').eq('user_id',currentUser.id).is('deleted_at',null);
     if(!error){
       const parents = new Map(data.map(row => [row.id,row.parent_id || null]));
       state.collections.forEach(item => { if(item.id !== ROOT) item.parentId = parents.get(item.id) || null; });
@@ -469,11 +472,12 @@
         event.stopPropagation();
         const ep = state.episodes.find(item => item.id === id);
         openDelete(`Delete “${ep?.title || 'this episode'}”?`,'This removes it from every category and from your synced metadata.',async () => {
+          window.mediaSync?.registerEpisodeDeletion(ep);
           state.episodes = state.episodes.filter(item => item.id !== id);
           pendingAudioFiles.delete(id);
           await mediaStore.remove(id).catch(() => null);
           saveState(); renderAll();
-          if(currentUser && isUuid(id)) await db().from('episodes').delete().eq('id',id);
+          if(currentUser) queueAutoSync();
           showToast('Episode deleted');
         });
       });

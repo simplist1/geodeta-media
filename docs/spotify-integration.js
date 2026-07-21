@@ -353,7 +353,7 @@
     return {created,updated,total:(payload.episodes || []).length};
   }
 
-  async function syncSpotifyEpisodes({quiet=false}={}){
+  async function syncSpotifyEpisodesUnlocked({quiet=false}={}){
     if(spotifyBusy) return;
     if(!currentUser){
       if(!quiet) showToast('Sign in with Google first');
@@ -380,6 +380,7 @@
     try{
       const payload = await invokeSpotify({action:'sync'});
       const result = mergeSpotifyData(payload);
+      await uploadLocalData();
       if(syncStatus) syncStatus.innerHTML = '<i data-lucide="check-circle-2"></i> Spotify synced just now';
       if(!quiet) showToast(`${result.total} Spotify episode${result.total === 1 ? '' : 's'} synced`);
     }catch(error){
@@ -396,6 +397,11 @@
       }
       refreshLucide();
     }
+  }
+
+  function syncSpotifyEpisodes(options={}){
+    const task = () => syncSpotifyEpisodesUnlocked(options);
+    return window.mediaSync?.runLocked ? window.mediaSync.runLocked(task) : task();
   }
 
   const baseEpisodeSyncInfo = episodeSyncInfo;

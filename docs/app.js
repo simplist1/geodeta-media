@@ -204,15 +204,14 @@ function wireEpisodes(container){
 
     card.querySelector('.episode-delete').addEventListener('click', async event => {
       event.stopPropagation();
+      const removedEpisode = state.episodes.find(ep => ep.id === id);
+      window.mediaSync?.registerEpisodeDeletion(removedEpisode);
       state.episodes = state.episodes.filter(ep => ep.id !== id);
       pendingAudioFiles.delete(id);
       saveState();
       renderAll();
 
-      if(currentUser && isUuid(id)){
-        const {error} = await db().from('episodes').delete().eq('id', id);
-        if(error) showToast('Episode removed locally; cloud delete failed');
-      }
+      if(currentUser) queueAutoSync();
       showToast('Episode removed');
     });
 
@@ -271,6 +270,8 @@ function renderCollections(){
     card.querySelector('.collection-delete').addEventListener('click', async event => {
       event.stopPropagation();
 
+      const removedCollection = state.collections.find(collection => collection.id === id);
+      window.mediaSync?.registerCollectionDeletion(removedCollection);
       state.collections = state.collections.filter(collection => collection.id !== id);
       state.episodes.forEach(ep => {
         ep.groups = ep.groups.filter(group => group !== id);
@@ -278,11 +279,7 @@ function renderCollections(){
       saveState();
       renderAll();
 
-      if(currentUser && isUuid(id)){
-        const {error} = await db().from('collections').delete().eq('id', id);
-        if(error) showToast('Collection removed locally; cloud delete failed');
-      }
-
+      if(currentUser) queueAutoSync();
       showToast('Collection removed');
     });
 
@@ -1068,63 +1065,7 @@ function relationRows(){
 }
 
 async function uploadLocalData(){
-  normalizeIds();
-  saveState(false);
-
-  const userId = currentUser.id;
-  const collections = collectionRows(userId);
-  const collectionBatches = collectionInsertBatches(collections);
-  const episodes = episodeRows(userId);
-  const relations = relationRows();
-  const collectionIds = new Set(collections.map(row => row.id));
-  const episodeIds = new Set(episodes.map(row => row.id));
-
-  if(relations.some(row =>
-    !collectionIds.has(row.collection_id) ||
-    !episodeIds.has(row.episode_id)
-  )){
-    throw new Error('An episode references a missing collection');
-  }
-
-  await saveProfileToSupabase({uploadPhoto:true});
-
-  let result;
-  if(episodeIds.size){
-    result = await db()
-      .from('collection_episodes')
-      .delete()
-      .in('episode_id',[...episodeIds]);
-
-    if(result.error) throw result.error;
-  }
-
-  result = await db().from('episodes').delete().eq('user_id',userId);
-  if(result.error) throw result.error;
-
-  result = await db().from('collections').delete().eq('user_id',userId);
-  if(result.error) throw result.error;
-
-  for(const batch of collectionBatches){
-    result = await db().from('collections').insert(batch);
-    if(result.error) throw result.error;
-  }
-
-  if(episodes.length){
-    result = await db().from('episodes').insert(episodes);
-    if(result.error) throw result.error;
-  }
-
-  if(relations.length){
-    result = await db().from('collection_episodes').insert(relations);
-    if(result.error) throw result.error;
-  }
-
-  state.episodes.forEach(ep => {
-    ep.syncStatus = 'synced';
-  });
-
-  localStorage.setItem(DIRTY_KEY,'false');
-  saveState(false);
+  throw new Error('Versioned sync module did not load');
 }
 
 async function signedArtworkUrl(path){
@@ -1143,8 +1084,8 @@ async function downloadRemoteData(){
 
   const [profileResult,collectionResult,episodeResult,relationResult] = await Promise.all([
     db().from('profiles').select('nickname,avatar_path').eq('user_id', userId).maybeSingle(),
-    db().from('collections').select('*').eq('user_id', userId).order('position'),
-    db().from('episodes').select('*').eq('user_id', userId).order('saved_at', {ascending:false}),
+    db().from('collections').select('*').eq('user_id', userId).is('deleted_at',null).order('sort_order'),
+    db().from('episodes').select('*').eq('user_id', userId).is('deleted_at',null).order('sort_order'),
     db().from('collection_episodes').select('*')
   ]);
 
@@ -1186,6 +1127,7 @@ async function downloadRemoteData(){
       timeLabel: normalizeTimeLabel(row.time_label),
       progress: Number(row.progress_percent) || 0,
       positionMs: Number(row.position_ms) || 0,
+      durationMs: Number(row.duration_ms) || 0,
       artText: (row.tag || row.title).slice(0,2).toUpperCase(),
       artClass: row.spotify_url ? 'one' : 'three',
       artImage: customArtwork || row.artwork_url || '',

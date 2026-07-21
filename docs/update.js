@@ -1,5 +1,5 @@
 (() => {
-  const CURRENT_BUILD_ID = '2026.07.20.3';
+  const CURRENT_BUILD_ID = '2026.07.21.1';
   const BUILD_URL = '/build.json';
   const DISMISSED_KEY = 'geodetaDismissedUpdate';
   const CHECK_INTERVAL_MS = 10 * 60 * 1000;

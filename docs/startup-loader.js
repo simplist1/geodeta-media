@@ -41,6 +41,69 @@
     },wait);
   }
 
+  async function syncCollections(userId){
+    if(!enabled || !userId){
+      leave();
+      return;
+    }
+
+    if(localStorage.getItem(DIRTY_KEY) === 'true'){
+      renderAll();
+      leave();
+      return;
+    }
+
+    try{
+      const {data,error} = await window.supabaseClient
+        .from('collections')
+        .select('id,name,icon,color,parent_id,position,sort_order,version')
+        .eq('user_id',userId)
+        .is('deleted_at',null)
+        .order('sort_order');
+
+      if(error) throw error;
+
+      const root = state.collections.find(item => item.id === 'all') || {
+        id:'all',
+        name:'All Episodes',
+        icon:'library',
+        color:'#5b5ce2'
+      };
+      const existing = new Map(state.collections.map(item => [item.id,item]));
+
+      state.collections = [
+        root,
+        ...(data || []).map(row => {
+          const sortOrder = Number(row.sort_order ?? row.position) || 0;
+          return {
+            ...(existing.get(row.id) || {}),
+            id:row.id,
+            name:row.name,
+            icon:row.icon,
+            color:row.color,
+            parentId:row.parent_id || null,
+            sortOrder,
+            _version:Number(row.version) || 1,
+            _syncBase:{
+              name:row.name,
+              icon:row.icon,
+              color:row.color,
+              parent_id:row.parent_id || null,
+              sort_order:sortOrder
+            }
+          };
+        })
+      ];
+
+      saveState(false);
+      renderAll();
+    }catch(error){
+      console.warn('Startup collection sync failed',error);
+    }finally{
+      leave();
+    }
+  }
+
   if(toggle){
     toggle.checked = enabled;
     toggle.addEventListener('change',() => {
@@ -57,26 +120,8 @@
     return;
   }
 
-  window.addEventListener('geodeta:library-shell-ready',leave,{once:true});
-  window.addEventListener('geodeta:data-startup-ready',leave,{once:true});
-
-  async function checkSession(){
-    try{
-      const {data,error} = await window.supabaseClient.auth.getSession();
-      if(error || !data?.session) leave();
-    }catch(error){
-      console.warn('Startup session check failed',error);
-      leave();
-    }
-  }
-
   if(themeMeta) themeMeta.content = '#5b5ce2';
-  if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded',checkSession,{once:true});
-  }else{
-    checkSession();
-  }
-
+  window.addEventListener('geodeta:data-startup-ready',leave,{once:true});
   setTimeout(leave,fallbackMs);
-  window.startupLoader = {finish:leave};
+  window.startupLoader = {finish:leave,syncCollections};
 })();

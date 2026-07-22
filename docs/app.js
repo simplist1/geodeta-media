@@ -1109,67 +1109,43 @@ async function downloadRemoteData(){
       id: row.id,
       name: row.name,
       icon: row.icon,
-      color: row.color,
-      parentId: row.parent_id || null
+      color: row.color
     }))
   ];
 
-  state.episodes = episodeResult.data.map(row => ({
-    id: row.id,
-    groups: relationMap.get(row.id) || ['all'],
-    source: row.spotify_url ? 'spotify' : row.audio_path ? 'online' : row.source_type,
-    tag: row.tag,
-    title: row.title,
-    timeLabel: normalizeTimeLabel(row.time_label),
-    progress: Number(row.progress_percent) || 0,
-    positionMs: Number(row.position_ms) || 0,
-    durationMs: Number(row.duration_ms) || 0,
-    artText: (row.tag || row.title).slice(0,2).toUpperCase(),
-    artClass: row.spotify_url ? 'one' : 'three',
-    artImage: row.artwork_url || '',
-    artSource: row.artwork_url ? 'spotify' : 'default',
-    artworkPath: row.artwork_path || '',
-    url: row.spotify_url || '',
-    embed: row.spotify_embed_url || '',
-    audioPath: row.audio_path || '',
-    onlinePath: row.audio_path || '',
-    onlineName: row.original_filename || '',
-    savedAt: new Date(row.saved_at).getTime(),
-    syncStatus: 'synced'
+  state.episodes = await Promise.all(episodeResult.data.map(async row => {
+    const customArtwork = row.artwork_path
+      ? await signedArtworkUrl(row.artwork_path)
+      : '';
+
+    return {
+      id: row.id,
+      groups: relationMap.get(row.id) || ['all'],
+      source: row.spotify_url ? 'spotify' : row.audio_path ? 'online' : row.source_type,
+      tag: row.tag,
+      title: row.title,
+      timeLabel: normalizeTimeLabel(row.time_label),
+      progress: Number(row.progress_percent) || 0,
+      positionMs: Number(row.position_ms) || 0,
+      durationMs: Number(row.duration_ms) || 0,
+      artText: (row.tag || row.title).slice(0,2).toUpperCase(),
+      artClass: row.spotify_url ? 'one' : 'three',
+      artImage: customArtwork || row.artwork_url || '',
+      artSource: customArtwork ? 'custom' : row.artwork_url ? 'spotify' : 'default',
+      artworkPath: row.artwork_path || '',
+      url: row.spotify_url || '',
+      embed: row.spotify_embed_url || '',
+      audioPath: row.audio_path || '',
+      onlinePath: row.audio_path || '',
+      onlineName: row.original_filename || '',
+      savedAt: new Date(row.saved_at).getTime(),
+      syncStatus: 'synced'
+    };
   }));
 
   saveState(false);
-  localStorage.setItem(DIRTY_KEY,'false');
+  localStorage.setItem(DIRTY_KEY, 'false');
   renderAll();
-  window.dispatchEvent(new Event('geodeta:library-shell-ready'));
-
-  const artworkPaths = [...new Set(
-    episodeResult.data.map(row => row.artwork_path).filter(Boolean)
-  )];
-
-  if(artworkPaths.length){
-    const {data:signedArtwork,error:artworkError} = await db()
-      .storage
-      .from('episode-artwork')
-      .createSignedUrls(artworkPaths,60 * 60 * 24 * 7);
-
-    if(!artworkError){
-      const signedByPath = new Map();
-      (signedArtwork || []).forEach((item,index) => {
-        signedByPath.set(item.path || artworkPaths[index],item.signedUrl || '');
-      });
-      state.episodes.forEach(ep => {
-        const customArtwork = signedByPath.get(ep.artworkPath);
-        if(customArtwork){
-          ep.artImage = customArtwork;
-          ep.artSource = 'custom';
-        }
-      });
-      saveState(false);
-      renderAll();
-    }
-  }
-
   return true;
 }
 
@@ -1330,10 +1306,8 @@ async function performAutoSync({includeFiles=false}={}){
 
 async function runSync(type,quiet=false){
   const status = $('#syncStatus');
-  if(!quiet){
-    status.innerHTML = `<i data-lucide="loader-circle"></i> Syncing ${type}…`;
-    refreshIcons();
-  }
+  status.innerHTML = `<i data-lucide="loader-circle"></i> Syncing ${type}…`;
+  refreshIcons();
 
   try{
     if(type === 'data') await syncData();
@@ -1342,7 +1316,7 @@ async function runSync(type,quiet=false){
       await syncFiles();
       await syncData();
     }
-    if(type === 'spotify' && !quiet){
+    if(type === 'spotify'){
       showToast('Spotify position sync needs Spotify OAuth');
     }
 
@@ -1352,15 +1326,12 @@ async function runSync(type,quiet=false){
     saveState(false);
     renderAll();
 
-    if(!quiet){
-      status.innerHTML = '<i data-lucide="check-circle-2"></i> Synced just now';
-      if(type !== 'spotify'){
-        showToast(type === 'all'
-          ? 'Everything synced'
-          : `${type[0].toUpperCase() + type.slice(1)} synced`
-        );
-      }
-      refreshIcons();
+    status.innerHTML = '<i data-lucide="check-circle-2"></i> Synced just now';
+    if(!quiet && type !== 'spotify'){
+      showToast(type === 'all'
+        ? 'Everything synced'
+        : `${type[0].toUpperCase() + type.slice(1)} synced`
+      );
     }
   }catch(error){
     console.error(error);
@@ -1368,12 +1339,11 @@ async function runSync(type,quiet=false){
       if(ep.syncStatus !== 'local') ep.syncStatus = 'error';
     });
     renderAll();
-    if(!quiet){
-      status.innerHTML = '<i data-lucide="circle-alert"></i> Sync failed';
-      showToast(error.message || 'Sync failed');
-      refreshIcons();
-    }
+    status.innerHTML = '<i data-lucide="circle-alert"></i> Sync failed';
+    if(!quiet) showToast(error.message || 'Sync failed');
   }
+
+  refreshIcons();
 }
 
 async function setupAuth(){
@@ -1490,7 +1460,12 @@ async function init(){
   refreshIcons();
   try{
     await setupAuth();
-    if(currentUser) await runSync('data',true);
+    if(currentUser){
+      await window.startupLoader?.syncCollections?.(currentUser.id);
+      await runSync('data',true);
+    }else{
+      window.startupLoader?.finish?.();
+    }
   }finally{
     window.dispatchEvent(new Event('geodeta:data-startup-ready'));
   }

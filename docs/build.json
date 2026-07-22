@@ -1,5 +1,5 @@
 {
-  "id": "2026.07.22.7",
-  "message": "Stop version-conflict retry storms",
-  "releasedAt": "2026-07-22T18:43:22.127Z"
+  "id": "2026.07.22.8",
+  "message": "Wait for full library and Spotify startup sync",
+  "releasedAt": "2026-07-22T20:05:59.623Z"
 }

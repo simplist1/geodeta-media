@@ -487,10 +487,16 @@
     document.querySelector('.source-tab[data-source="online"]')?.setAttribute('aria-hidden','true');
     refreshLucide();
 
+    window.startupLoader?.setStatus?.('Checking Spotify…');
     const {data} = await client().auth.getSession();
-    if(callbackRequested()) await captureSpotifySession(data.session);
+    if(callbackRequested()){
+      window.startupLoader?.setStatus?.('Connecting Spotify…');
+      await captureSpotifySession(data.session);
+    }
+    window.startupLoader?.setStatus?.('Checking Spotify…');
     const status = await updateSpotifyStatus();
     if(status.connected && !callbackRequested()){
+      window.startupLoader?.setStatus?.('Syncing Spotify…');
       await syncSpotifyEpisodes({quiet:true});
     }
   }

@@ -2,6 +2,7 @@
   const settingKey = 'geodetaStartupLoaderEnabled';
   const overlay = document.querySelector('#startupLoader');
   const status = document.querySelector('#startupLoaderStatus');
+  const skip = document.querySelector('#startupLoaderSkip');
   const toggle = document.querySelector('#startupLoaderToggle');
   const themeMeta = document.querySelector('meta[name="theme-color"]');
   let enabled = true;
@@ -10,8 +11,10 @@
   }catch(error){}
   const startedAt = performance.now();
   const minimumVisibleMs = 300;
-  const fallbackMs = 20000;
+  const fallbackMs = 45000;
   let leaving = false;
+  let dataReady = false;
+  let spotifyReady = false;
 
   function appThemeColor(){
     return window.matchMedia?.('(prefers-color-scheme: dark)').matches
@@ -42,20 +45,16 @@
       setTimeout(() => {
         overlay.remove();
         document.body.classList.remove('startup-loading');
-      },820);
+      },1020);
     },wait);
   }
 
   async function syncCollections(userId){
     setStatus('Loading collections…');
-    if(!enabled || !userId){
-      leave();
-      return;
-    }
+    if(!enabled || !userId) return;
 
     if(localStorage.getItem(DIRTY_KEY) === 'true'){
       renderAll();
-      leave();
       return;
     }
 
@@ -105,10 +104,21 @@
       renderAll();
     }catch(error){
       console.warn('Startup collection sync failed',error);
-    }finally{
-      leave();
     }
   }
+
+  function finishWhenReady(){
+    if(leaving || !dataReady || !spotifyReady) return;
+    setStatus('Positioning library…');
+    requestAnimationFrame(() => {
+      requestAnimationFrame(leave);
+    });
+  }
+
+  skip?.addEventListener('click',() => {
+    setStatus('Finishing sync in the background…');
+    leave();
+  });
 
   if(toggle){
     toggle.checked = enabled;
@@ -127,7 +137,14 @@
   }
 
   if(themeMeta) themeMeta.content = '#5b5ce2';
-  window.addEventListener('geodeta:data-startup-ready',leave,{once:true});
+  window.addEventListener('geodeta:data-startup-ready',() => {
+    dataReady = true;
+    finishWhenReady();
+  },{once:true});
+  window.addEventListener('geodeta:spotify-startup-ready',() => {
+    spotifyReady = true;
+    finishWhenReady();
+  },{once:true});
   setTimeout(leave,fallbackMs);
   window.startupLoader = {finish:leave,syncCollections,setStatus};
 })();

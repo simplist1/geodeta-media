@@ -1460,9 +1460,8 @@ async function init(){
     await setupAuth();
     if(currentUser){
       await window.startupLoader?.syncCollections?.(currentUser.id);
+      window.startupLoader?.setStatus?.('Syncing library…');
       await runSync('data',true);
-    }else{
-      window.startupLoader?.finish?.();
     }
   }finally{
     window.dispatchEvent(new Event('geodeta:data-startup-ready'));

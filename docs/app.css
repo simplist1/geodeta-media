@@ -17,12 +17,14 @@
 
 /* Startup sync cover */
 body.startup-loading{overflow:hidden}
-.startup-loader{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;background:#5b5ce2;transform:translateY(0);will-change:transform,border-radius;box-shadow:0 20px 70px rgba(17,17,20,.28);transition:transform .78s var(--ease),border-radius .78s var(--ease)}
+.startup-loader{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;background:#5b5ce2;transform:translateY(0);will-change:transform,border-radius;box-shadow:0 20px 70px rgba(17,17,20,.28);transition:transform .96s var(--ease),border-radius .96s var(--ease)}
 .startup-loader.is-leaving{transform:translateY(-105%);border-radius:0 0 46% 46%}
 .startup-loader-content{display:flex;flex-direction:column;align-items:center;gap:14px}
 .startup-spinner{width:44px;height:44px;border:4px solid rgba(17,17,20,.23);border-top-color:#111114;border-radius:50%;animation:startupSpin .72s linear infinite;transition:opacity .18s ease}
 .startup-loader-status{max-width:240px;color:#111114;font-size:13px;font-weight:600;letter-spacing:.01em;text-align:center;transition:opacity .18s ease}
-.startup-loader.is-leaving .startup-spinner,.startup-loader.is-leaving .startup-loader-status{opacity:0}
+.startup-loader-skip{appearance:none;border:0;background:none;padding:4px 8px;color:#111114;font:inherit;font-size:12px;font-weight:600;text-decoration:underline;text-underline-offset:3px;cursor:pointer;transition:opacity .18s ease}
+.startup-loader-skip:focus-visible{outline:2px solid #111114;outline-offset:3px;border-radius:4px}
+.startup-loader.is-leaving .startup-spinner,.startup-loader.is-leaving .startup-loader-status,.startup-loader.is-leaving .startup-loader-skip{opacity:0}
 @keyframes startupSpin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.startup-spinner{animation-duration:1.4s}.startup-loader{transition:opacity .25s ease}.startup-loader.is-leaving{transform:none;border-radius:0;opacity:0;pointer-events:none}}
 

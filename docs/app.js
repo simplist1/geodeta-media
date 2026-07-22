@@ -1362,9 +1362,6 @@ async function setupAuth(){
     updateGoogleButton();
     renderAll();
 
-    if(currentUser && event === 'SIGNED_IN'){
-      setTimeout(() => runSync('data', true), 250);
-    }
   });
 }
 

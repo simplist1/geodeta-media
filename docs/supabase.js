@@ -9,7 +9,12 @@
 
   const client = window.supabase.createClient(
     SUPABASE_URL,
-    SUPABASE_PUBLISHABLE_KEY
+    SUPABASE_PUBLISHABLE_KEY,
+    {
+      db: {
+        retry: false
+      }
+    }
   );
 
   window.supabaseClient = client;

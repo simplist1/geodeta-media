@@ -4,11 +4,76 @@
   const originalPerformAutoSync = performAutoSync;
   const originalRunSync = runSync;
   let syncTail = Promise.resolve();
+  let syncConflict = null;
+  let autoSyncPromise = null;
+  let autoSyncPending = false;
+  let autoSyncIncludeFiles = false;
 
   function runLocked(task){
-    const run = syncTail.then(task,task);
+    const execute = () => syncConflict ? undefined : task();
+    const run = syncTail.then(execute,execute);
     syncTail = run.catch(() => undefined);
     return run;
+  }
+
+  function conflictFrom(error,data){
+    if(data?.conflict) return data.conflict;
+    const message = error?.message || '';
+    if(
+      error?.code !== '40001' &&
+      error?.code !== 'P0001' &&
+      !/has a newer version/i.test(message)
+    ) return null;
+    const match = message.match(/(Collection|Episode) ([0-9a-f-]+) has a newer version/i);
+    return match
+      ? {type:match[1].toLowerCase(),id:match[2]}
+      : {type:'record',id:null};
+  }
+
+  function conflictError(conflict){
+    const label = conflict?.type && conflict.type !== 'record'
+      ? `${conflict.type} ${conflict.id || ''}`.trim()
+      : 'record';
+    const error = new Error(
+      `Sync paused: the cloud has a newer copy of this ${label}. Your local changes were kept.`
+    );
+    error.code = 'SYNC_CONFLICT';
+    error.conflict = conflict;
+    return error;
+  }
+
+  async function resolveEquivalentConflict(conflict){
+    if(!conflict?.id || !['collection','episode'].includes(conflict.type)) return false;
+    const remote = await fetchRemoteSnapshot();
+    const items = conflict.type === 'collection' ? state.collections : state.episodes;
+    const item = items.find(candidate => candidate.id === conflict.id);
+    const record = conflict.type === 'collection'
+      ? remote.collections.get(conflict.id)
+      : remote.episodes.get(conflict.id);
+    if(!item) return false;
+    if(!record && conflict.type === 'episode'){
+      item._syncConflict = {
+        reason:'deleted_in_cloud',
+        detectedAt:new Date().toISOString()
+      };
+      item.syncStatus = 'error';
+      syncConflict = null;
+      saveState(false);
+      return true;
+    }
+    if(!record) return false;
+
+    const index = items.indexOf(item);
+    const current = conflict.type === 'collection'
+      ? collectionCanonical(item,index)
+      : episodeCanonical(item,index);
+    if(stable(current) !== stable(record.canonical)) return false;
+
+    item._version = record.version;
+    item._syncBase = record.canonical;
+    syncConflict = null;
+    saveState(false);
+    return true;
   }
 
   function stable(value){
@@ -183,7 +248,7 @@
     const episodeOrder = [];
 
     state.collections.forEach((item,index) => {
-      if(item.id === rootId) return;
+      if(item.id === rootId || item._syncConflict) return;
       const current = collectionCanonical(item,index);
       const base = item._syncBase;
       if(base && stable(current) === stable(base)) return;
@@ -196,6 +261,7 @@
     });
 
     state.episodes.forEach((ep,index) => {
+      if(ep._syncConflict) return;
       const current = episodeCanonical(ep,index);
       const base = ep._syncBase;
       if(base && stable(current) === stable(base)) return;
@@ -263,7 +329,7 @@
     saveState(false);
   }
 
-  uploadLocalData = async function(){
+  uploadLocalData = async function(conflictRetry=false){
     if(!currentUser) throw new Error('Sign in with Google first');
     normalizeIds();
     await ensureBaselines();
@@ -282,12 +348,15 @@
       p_collection_deletes:changes.collectionDeletes,
       p_episode_deletes:changes.episodeDeletes
     });
-    if(error){
-      if(error.code === '40001'){
-        throw new Error('Sync conflict: newer cloud changes exist. Reload before trying again.');
+    const conflict = conflictFrom(error,data);
+    if(conflict){
+      if(!conflictRetry && await resolveEquivalentConflict(conflict)){
+        return uploadLocalData(true);
       }
-      throw error;
+      syncConflict = conflictError(conflict);
+      throw syncConflict;
     }
+    if(error) throw error;
     applyResults(changes,data || {});
   };
 
@@ -309,6 +378,7 @@
       ep.sortOrder = record?.canonical.sort_order ?? 0;
     });
     state.syncTombstones = {collections:{},episodes:{}};
+    syncConflict = null;
     localStorage.setItem(DIRTY_KEY,'false');
     saveState(false);
     return downloaded;
@@ -328,16 +398,33 @@
     return hasChanges(changes) ? uploadLocalData() : downloadRemoteData();
   };
 
-  performAutoSync = function(options){
-    return runLocked(() => originalPerformAutoSync(options));
+  performAutoSync = function(options={}){
+    autoSyncPending = true;
+    autoSyncIncludeFiles ||= Boolean(options.includeFiles);
+    if(autoSyncPromise) return autoSyncPromise;
+
+    autoSyncPromise = runLocked(async () => {
+      do{
+        autoSyncPending = false;
+        const includeFiles = autoSyncIncludeFiles;
+        autoSyncIncludeFiles = false;
+        await originalPerformAutoSync({includeFiles});
+      }while(autoSyncPending && !syncConflict);
+    }).finally(() => {
+      autoSyncPromise = null;
+    });
+    return autoSyncPromise;
   };
 
   runSync = function(type,quiet=false){
+    if(!quiet) syncConflict = null;
     return runLocked(() => originalRunSync(type,quiet));
   };
 
   window.mediaSync = {
     runLocked,
+    clearConflict:() => { syncConflict = null; },
+    hasConflict:() => Boolean(syncConflict),
     registerCollectionDeletion:item => registerDeletion('collections',item),
     registerEpisodeDeletion:item => registerDeletion('episodes',item),
     pendingChanges

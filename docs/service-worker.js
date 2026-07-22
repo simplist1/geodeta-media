@@ -1,4 +1,4 @@
-const CACHE_NAME = 'geodeta-media-shell-20260721-1';
+const CACHE_NAME = 'geodeta-media-shell-20260722-1';
 const CACHE_PREFIX = 'geodeta-media-shell-';
 
 const APP_SHELL = [
@@ -17,6 +17,7 @@ const APP_SHELL = [
   '/profile-autosync.js',
   '/spotify-integration.js',
   '/versioned-sync.js',
+  '/startup-loader.js',
   '/media-interactions.js',
   '/update.js',
   '/pwa.js',

@@ -1362,7 +1362,7 @@ async function setupAuth(){
     updateGoogleButton();
     renderAll();
 
-    if(currentUser && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')){
+    if(currentUser && event === 'SIGNED_IN'){
       setTimeout(() => runSync('data', true), 250);
     }
   });
@@ -1458,11 +1458,12 @@ async function init(){
   setupSpotifyButton();
   renderAll();
   refreshIcons();
-  await setupAuth();
-
-  setTimeout(() => {
-    if(currentUser) runSync('data', true);
-  }, 700);
+  try{
+    await setupAuth();
+    if(currentUser) await runSync('data',true);
+  }finally{
+    window.dispatchEvent(new Event('geodeta:data-startup-ready'));
+  }
 }
 
 document.addEventListener('DOMContentLoaded', init);

@@ -1,11 +1,16 @@
 (() => {
+  const settingKey = 'geodetaStartupLoaderEnabled';
   const overlay = document.querySelector('#startupLoader');
-  if(!overlay) return;
-
+  const toggle = document.querySelector('#startupLoaderToggle');
   const themeMeta = document.querySelector('meta[name="theme-color"]');
+  let enabled = true;
+  try{
+    enabled = localStorage.getItem(settingKey) !== 'false';
+  }catch(error){}
   const startedAt = performance.now();
   const minimumVisibleMs = 520;
-  const fallbackMs = 15000;
+  const fallbackMs = 20000;
+  const ready = {data:false,spotify:false};
   let leaving = false;
 
   function appThemeColor(){
@@ -14,8 +19,14 @@
       : '#f5f5f7';
   }
 
+  function removeImmediately(){
+    overlay?.remove();
+    document.body.classList.remove('startup-loading');
+    if(themeMeta) themeMeta.content = appThemeColor();
+  }
+
   function leave(){
-    if(leaving) return;
+    if(leaving || !overlay) return;
     const wait = Math.max(0,minimumVisibleMs - (performance.now() - startedAt));
     leaving = true;
 
@@ -31,14 +42,29 @@
     },wait);
   }
 
-  const startupRunSync = runSync;
-  runSync = async function(type,quiet=false){
-    try{
-      return await startupRunSync(type,quiet);
-    }finally{
-      if(type === 'data') leave();
-    }
-  };
+  function markReady(part){
+    ready[part] = true;
+    if(ready.data && ready.spotify) leave();
+  }
+
+  if(toggle){
+    toggle.checked = enabled;
+    toggle.addEventListener('change',() => {
+      try{
+        localStorage.setItem(settingKey,String(toggle.checked));
+      }catch(error){}
+      document.documentElement.classList.toggle('startup-loader-disabled',!toggle.checked);
+      showToast('Startup loading screen ' + (toggle.checked ? 'enabled' : 'disabled'));
+    });
+  }
+
+  if(!enabled){
+    removeImmediately();
+    return;
+  }
+
+  window.addEventListener('geodeta:data-startup-ready',() => markReady('data'),{once:true});
+  window.addEventListener('geodeta:spotify-startup-ready',() => markReady('spotify'),{once:true});
 
   async function checkSession(){
     try{

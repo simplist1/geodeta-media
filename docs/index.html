@@ -4,6 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#5b5ce2">
+  <script>
+    try{
+      if(localStorage.getItem('geodetaStartupLoaderEnabled') === 'false'){
+        document.documentElement.classList.add('startup-loader-disabled');
+        document.querySelector('meta[name="theme-color"]').content =
+          matchMedia('(prefers-color-scheme: dark)').matches ? '#111114' : '#f5f5f7';
+      }
+    }catch(error){}
+  </script>
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="application-name" content="Geodeta Media">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -11,16 +20,16 @@
   <meta name="apple-mobile-web-app-title" content="Geodeta Media">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <title>Geodeta Media</title>
-  <link rel="manifest" href="./manifest.webmanifest?v=20260722-1">
+  <link rel="manifest" href="./manifest.webmanifest?v=20260722-2">
   <link rel="icon" href="./art/icon-192.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./art/icon-192.svg">
-  <link rel="stylesheet" href="./app.css?v=20260722-1">
-  <link rel="stylesheet" href="./app-overrides.css?v=20260722-1">
-  <link rel="stylesheet" href="./update.css?v=20260722-1">
-  <link rel="stylesheet" href="./library-explorer.css?v=20260722-1">
-  <link rel="stylesheet" href="./spotify-integration.css?v=20260722-1">
-  <link rel="stylesheet" href="./pwa.css?v=20260722-1">
-  <link rel="stylesheet" href="./media-interactions.css?v=20260722-1">
+  <link rel="stylesheet" href="./app.css?v=20260722-2">
+  <link rel="stylesheet" href="./app-overrides.css?v=20260722-2">
+  <link rel="stylesheet" href="./update.css?v=20260722-2">
+  <link rel="stylesheet" href="./library-explorer.css?v=20260722-2">
+  <link rel="stylesheet" href="./spotify-integration.css?v=20260722-2">
+  <link rel="stylesheet" href="./pwa.css?v=20260722-2">
+  <link rel="stylesheet" href="./media-interactions.css?v=20260722-2">
 </head>
 <body class="startup-loading">
   <div id="startupLoader" class="startup-loader" role="status" aria-label="Syncing your library">
@@ -92,6 +101,13 @@
           <div class="settings-row" id="installAppRow">
             <div class="settings-copy"><strong>Install app</strong><span id="installAppCopy">On Android Chrome, install from this button or the browser menu.</span></div>
             <button id="installApp" class="action-button"><i data-lucide="smartphone"></i>Install</button>
+          </div>
+          <div class="settings-row">
+            <div class="settings-copy"><strong>Startup loading screen</strong><span>Cover the library until startup syncing is completely finished.</span></div>
+            <label class="setting-toggle" aria-label="Show startup loading screen">
+              <input id="startupLoaderToggle" type="checkbox">
+              <span class="setting-toggle-track"></span>
+            </label>
           </div>
           <div class="settings-row">
             <div class="settings-copy"><strong>Hard refresh</strong><span>Clear cached app files and reload the latest deployed version.</span></div>
@@ -193,15 +209,15 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-  <script src="./supabase.js?v=20260722-1"></script>
-  <script src="./app.js?v=20260722-1"></script>
-  <script src="./library-explorer.js?v=20260722-1"></script>
-  <script src="./profile-autosync.js?v=20260722-1"></script>
-  <script src="./spotify-integration.js?v=20260722-1"></script>
-  <script src="./versioned-sync.js?v=20260722-1"></script>
-  <script src="./startup-loader.js?v=20260722-1"></script>
-  <script src="./media-interactions.js?v=20260722-1"></script>
-  <script src="./pwa.js?v=20260722-1"></script>
-  <script src="./update.js?v=20260722-1"></script>
+  <script src="./supabase.js?v=20260722-2"></script>
+  <script src="./app.js?v=20260722-2"></script>
+  <script src="./library-explorer.js?v=20260722-2"></script>
+  <script src="./profile-autosync.js?v=20260722-2"></script>
+  <script src="./spotify-integration.js?v=20260722-2"></script>
+  <script src="./versioned-sync.js?v=20260722-2"></script>
+  <script src="./startup-loader.js?v=20260722-2"></script>
+  <script src="./media-interactions.js?v=20260722-2"></script>
+  <script src="./pwa.js?v=20260722-2"></script>
+  <script src="./update.js?v=20260722-2"></script>
 </body>
 </html>

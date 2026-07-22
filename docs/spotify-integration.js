@@ -349,7 +349,6 @@
 
     saveState();
     renderAll();
-    queueAutoSync();
     return {created,updated,total:(payload.episodes || []).length};
   }
 
@@ -490,7 +489,7 @@
     if(callbackRequested()) await captureSpotifySession(data.session);
     const status = await updateSpotifyStatus();
     if(status.connected && !callbackRequested()){
-      setTimeout(() => syncSpotifyEpisodes({quiet:true}),900);
+      await syncSpotifyEpisodes({quiet:true});
     }
   }
 
@@ -504,6 +503,14 @@
   }
 
   document.addEventListener('DOMContentLoaded',() => {
-    setTimeout(() => initializeSpotify().catch(error => console.error(error)),900);
+    setTimeout(async () => {
+      try{
+        await initializeSpotify();
+      }catch(error){
+        console.error(error);
+      }finally{
+        window.dispatchEvent(new Event('geodeta:spotify-startup-ready'));
+      }
+    },900);
   });
 })();

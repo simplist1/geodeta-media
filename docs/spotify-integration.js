@@ -367,34 +367,36 @@
 
     spotifyBusy = true;
     const syncButton = document.querySelector('[data-sync="spotify"]');
-    if(syncButton){
+    const syncStatus = document.querySelector('#syncStatus');
+    if(!quiet && syncButton){
       syncButton.disabled = true;
       syncButton.classList.add('spotify-syncing');
       syncButton.innerHTML = '<i data-lucide="loader-circle"></i>Syncing Spotify';
     }
-    const syncStatus = document.querySelector('#syncStatus');
-    if(syncStatus) syncStatus.innerHTML = '<i data-lucide="loader-circle"></i> Syncing Spotify…';
-    refreshLucide();
+    if(!quiet && syncStatus){
+      syncStatus.innerHTML = '<i data-lucide="loader-circle"></i> Syncing Spotify…';
+      refreshLucide();
+    }
 
     try{
       const payload = await invokeSpotify({action:'sync'});
       const result = mergeSpotifyData(payload);
       await uploadLocalData();
-      if(syncStatus) syncStatus.innerHTML = '<i data-lucide="check-circle-2"></i> Spotify synced just now';
+      if(!quiet && syncStatus) syncStatus.innerHTML = '<i data-lucide="check-circle-2"></i> Spotify synced just now';
       if(!quiet) showToast(`${result.total} Spotify episode${result.total === 1 ? '' : 's'} synced`);
     }catch(error){
       console.error(error);
-      if(syncStatus) syncStatus.innerHTML = '<i data-lucide="circle-alert"></i> Spotify sync failed';
+      if(!quiet && syncStatus) syncStatus.innerHTML = '<i data-lucide="circle-alert"></i> Spotify sync failed';
       if(!quiet) showToast(error.message || 'Spotify sync failed');
       if(/relink|authorization expired|not linked/i.test(error.message || '')) await updateSpotifyStatus();
     }finally{
       spotifyBusy = false;
-      if(syncButton){
+      if(!quiet && syncButton){
         syncButton.disabled = false;
         syncButton.classList.remove('spotify-syncing');
         syncButton.innerHTML = '<i data-lucide="radio"></i>Sync Spotify';
+        refreshLucide();
       }
-      refreshLucide();
     }
   }
 

@@ -8,9 +8,8 @@
     enabled = localStorage.getItem(settingKey) !== 'false';
   }catch(error){}
   const startedAt = performance.now();
-  const minimumVisibleMs = 520;
+  const minimumVisibleMs = 300;
   const fallbackMs = 20000;
-  const ready = {data:false,spotify:false};
   let leaving = false;
 
   function appThemeColor(){
@@ -42,11 +41,6 @@
     },wait);
   }
 
-  function markReady(part){
-    ready[part] = true;
-    if(ready.data && ready.spotify) leave();
-  }
-
   if(toggle){
     toggle.checked = enabled;
     toggle.addEventListener('change',() => {
@@ -63,8 +57,7 @@
     return;
   }
 
-  window.addEventListener('geodeta:data-startup-ready',() => markReady('data'),{once:true});
-  window.addEventListener('geodeta:spotify-startup-ready',() => markReady('spotify'),{once:true});
+  window.addEventListener('geodeta:data-startup-ready',leave,{once:true});
 
   async function checkSession(){
     try{

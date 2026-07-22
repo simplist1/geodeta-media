@@ -1,5 +1,5 @@
 {
-  "id": "2026.07.22.2",
-  "message": "Complete startup loading and setting",
-  "releasedAt": "2026-07-22T13:23:53.022Z"
+  "id": "2026.07.22.3",
+  "message": "Faster library-only startup loader",
+  "releasedAt": "2026-07-22T14:26:44.102Z"
 }

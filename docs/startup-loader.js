@@ -1,6 +1,7 @@
 (() => {
   const settingKey = 'geodetaStartupLoaderEnabled';
   const overlay = document.querySelector('#startupLoader');
+  const status = document.querySelector('#startupLoaderStatus');
   const toggle = document.querySelector('#startupLoaderToggle');
   const themeMeta = document.querySelector('meta[name="theme-color"]');
   let enabled = true;
@@ -16,6 +17,10 @@
     return window.matchMedia?.('(prefers-color-scheme: dark)').matches
       ? '#111114'
       : '#f5f5f7';
+  }
+
+  function setStatus(message){
+    if(status && message) status.textContent = message;
   }
 
   function removeImmediately(){
@@ -42,6 +47,7 @@
   }
 
   async function syncCollections(userId){
+    setStatus('Loading collections…');
     if(!enabled || !userId){
       leave();
       return;
@@ -123,5 +129,5 @@
   if(themeMeta) themeMeta.content = '#5b5ce2';
   window.addEventListener('geodeta:data-startup-ready',leave,{once:true});
   setTimeout(leave,fallbackMs);
-  window.startupLoader = {finish:leave,syncCollections};
+  window.startupLoader = {finish:leave,syncCollections,setStatus};
 })();

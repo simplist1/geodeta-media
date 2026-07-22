@@ -1459,6 +1459,7 @@ async function init(){
   renderAll();
   refreshIcons();
   try{
+    window.startupLoader?.setStatus?.('Checking your session…');
     await setupAuth();
     if(currentUser){
       await window.startupLoader?.syncCollections?.(currentUser.id);

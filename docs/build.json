@@ -1,5 +1,5 @@
 {
-  "id": "2026.07.22.3",
-  "message": "Faster library-only startup loader",
-  "releasedAt": "2026-07-22T14:26:44.102Z"
+  "id": "2026.07.22.4",
+  "message": "Render library shell before background media work",
+  "releasedAt": "2026-07-22T15:46:43.886Z"
 }

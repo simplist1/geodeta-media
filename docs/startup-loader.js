@@ -57,6 +57,7 @@
     return;
   }
 
+  window.addEventListener('geodeta:library-shell-ready',leave,{once:true});
   window.addEventListener('geodeta:data-startup-ready',leave,{once:true});
 
   async function checkSession(){

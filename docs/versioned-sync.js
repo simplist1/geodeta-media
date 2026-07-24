@@ -42,38 +42,151 @@
     return error;
   }
 
-  async function resolveEquivalentConflict(conflict){
+  const CONFLICT_BACKUP_KEY = 'geodetaSyncConflictBackups';
+  const MAX_CONFLICT_BACKUPS = 20;
+  const MAX_CONFLICT_REBASE_RETRIES = 3;
+
+  function sameValue(left,right){
+    return stable(left) === stable(right);
+  }
+
+  function mergeCanonical(base,local,cloud){
+    const merged = {...cloud};
+    const collisions = [];
+    const keys = new Set([
+      ...Object.keys(base || {}),
+      ...Object.keys(local || {}),
+      ...Object.keys(cloud || {})
+    ]);
+
+    for(const key of keys){
+      if(key === 'sort_order'){
+        merged.sort_order = local.sort_order;
+        continue;
+      }
+      const localChanged = !sameValue(local[key],base[key]);
+      const cloudChanged = !sameValue(cloud[key],base[key]);
+      if(!localChanged) continue;
+      merged[key] = local[key];
+      if(cloudChanged && !sameValue(local[key],cloud[key])) collisions.push(key);
+    }
+    return {merged,collisions};
+  }
+
+  function saveConflictBackup(type,id,fields,base,local,cloud){
+    try{
+      const backups = JSON.parse(localStorage.getItem(CONFLICT_BACKUP_KEY) || '[]');
+      backups.unshift({
+        type,
+        id,
+        fields,
+        detectedAt:new Date().toISOString(),
+        base,
+        local,
+        cloud
+      });
+      localStorage.setItem(
+        CONFLICT_BACKUP_KEY,
+        JSON.stringify(backups.slice(0,MAX_CONFLICT_BACKUPS))
+      );
+    }catch(error){
+      console.warn('Could not save sync conflict backup',error);
+    }
+  }
+
+  function applyCollectionCanonical(item,canonical){
+    item.name = canonical.name;
+    item.icon = canonical.icon;
+    item.color = canonical.color;
+    item.parentId = canonical.parent_id || rootId;
+  }
+
+  function applyEpisodeCanonical(ep,canonical){
+    ep.title = canonical.title;
+    ep.tag = canonical.tag;
+    ep.source = canonical.source_type;
+    ep.url = canonical.spotify_url || '';
+    ep.embed = canonical.spotify_embed_url || '';
+    ep.artworkPath = canonical.artwork_path || null;
+    ep.artImage = canonical.artwork_url || '';
+    ep.artSource = canonical.artwork_url
+      ? 'spotify'
+      : canonical.artwork_path ? 'custom' : 'default';
+    ep.audioPath = canonical.audio_path || null;
+    ep.onlinePath = canonical.source_type === 'online' ? canonical.audio_path || null : null;
+    ep.localName = canonical.source_type === 'online' ? null : canonical.original_filename || null;
+    ep.onlineName = canonical.source_type === 'online' ? canonical.original_filename || null : null;
+    ep.durationMs = canonical.duration_ms;
+    ep.positionMs = canonical.position_ms;
+    ep.progress = canonical.progress_percent;
+    ep.finished = Boolean(canonical.finished);
+    ep.timeLabel = canonical.time_label;
+    ep.savedAt = Date.parse(canonical.saved_at) || 0;
+    ep.spotifyId = canonical.spotify_id;
+    ep.spotifySaved = canonical.spotify_saved;
+    ep.spotifySavedAt = canonical.spotify_saved_at;
+    ep.spotifyLastSyncedAt = canonical.spotify_last_synced_at;
+    ep.spotifyDurationMs = canonical.spotify_duration_ms;
+    ep.groups = [rootId,...canonical.group_ids];
+  }
+
+  async function resolveConflict(conflict){
     if(!conflict?.id || !['collection','episode'].includes(conflict.type)) return false;
     const remote = await fetchRemoteSnapshot();
-    const items = conflict.type === 'collection' ? state.collections : state.episodes;
-    const item = items.find(candidate => candidate.id === conflict.id);
-    const record = conflict.type === 'collection'
-      ? remote.collections.get(conflict.id)
-      : remote.episodes.get(conflict.id);
-    if(!item) return false;
-    if(!record && conflict.type === 'episode'){
-      item._syncConflict = {
-        reason:'deleted_in_cloud',
-        detectedAt:new Date().toISOString()
-      };
-      item.syncStatus = 'error';
+    let targetResolved = false;
+    let changed = false;
+
+    for(const [type,items,records,canonicalFor,applyCanonical] of [
+      ['collection',state.collections,remote.collections,collectionCanonical,applyCollectionCanonical],
+      ['episode',state.episodes,remote.episodes,episodeCanonical,applyEpisodeCanonical]
+    ]){
+      items.forEach((item,index) => {
+        if(type === 'collection' && item.id === rootId) return;
+        const record = records.get(item.id);
+        const isTarget = type === conflict.type && item.id === conflict.id;
+
+        if(!record){
+          if(isTarget && type === 'episode' && Number(item._version) > 0){
+            item._syncConflict = {
+              reason:'deleted_in_cloud',
+              detectedAt:new Date().toISOString()
+            };
+            item.syncStatus = 'error';
+            targetResolved = true;
+            changed = true;
+          }
+          return;
+        }
+        if(record.version <= (Number(item._version) || 0)) return;
+        if(!item._syncBase) return;
+
+        const local = canonicalFor(item,index);
+        const {merged,collisions} = mergeCanonical(item._syncBase,local,record.canonical);
+        if(collisions.length){
+          saveConflictBackup(
+            type,
+            item.id,
+            collisions,
+            item._syncBase,
+            local,
+            record.canonical
+          );
+        }
+        applyCanonical(item,merged);
+        delete item._syncConflict;
+        item._version = record.version;
+        item._syncBase = record.canonical;
+        if(type === 'episode') item.syncStatus = 'pending';
+        if(isTarget) targetResolved = true;
+        changed = true;
+      });
+    }
+
+    if(changed){
       syncConflict = null;
       saveState(false);
-      return true;
     }
-    if(!record) return false;
-
-    const index = items.indexOf(item);
-    const current = conflict.type === 'collection'
-      ? collectionCanonical(item,index)
-      : episodeCanonical(item,index);
-    if(stable(current) !== stable(record.canonical)) return false;
-
-    item._version = record.version;
-    item._syncBase = record.canonical;
-    syncConflict = null;
-    saveState(false);
-    return true;
+    return targetResolved;
   }
 
   function stable(value){
@@ -329,7 +442,7 @@
     saveState(false);
   }
 
-  uploadLocalData = async function(conflictRetry=false){
+  uploadLocalData = async function(conflictRetries=0){
     if(!currentUser) throw new Error('Sign in with Google first');
     normalizeIds();
     await ensureBaselines();
@@ -350,8 +463,11 @@
     });
     const conflict = conflictFrom(error,data);
     if(conflict){
-      if(!conflictRetry && await resolveEquivalentConflict(conflict)){
-        return uploadLocalData(true);
+      if(
+        conflictRetries < MAX_CONFLICT_REBASE_RETRIES &&
+        await resolveConflict(conflict)
+      ){
+        return uploadLocalData(conflictRetries + 1);
       }
       syncConflict = conflictError(conflict);
       throw syncConflict;

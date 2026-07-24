@@ -1,5 +1,5 @@
 {
-  "id": "2026.07.22.8",
-  "message": "Wait for full library and Spotify startup sync",
-  "releasedAt": "2026-07-22T20:05:59.623Z"
+  "id": "2026.07.24.1",
+  "message": "Rebase stale sync records before upload",
+  "releasedAt": "2026-07-24T14:43:04.449Z"
 }

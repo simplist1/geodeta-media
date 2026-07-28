@@ -354,6 +354,10 @@
 
   async function syncSpotifyEpisodesUnlocked({quiet=false}={}){
     if(spotifyBusy) return;
+    if(typeof isLibraryReadOnly === 'function' && isLibraryReadOnly()){
+      if(!quiet) showToast('Turn off Read Only to refresh Spotify');
+      return;
+    }
     if(!currentUser){
       if(!quiet) showToast('Sign in with Google first');
       return;
@@ -366,35 +370,34 @@
     }
 
     spotifyBusy = true;
-    const syncButton = document.querySelector('[data-sync="spotify"]');
+    const syncButton = document.querySelector('[data-transfer="spotify"]');
     const syncStatus = document.querySelector('#syncStatus');
     if(!quiet && syncButton){
       syncButton.disabled = true;
       syncButton.classList.add('spotify-syncing');
-      syncButton.innerHTML = '<i data-lucide="loader-circle"></i>Syncing Spotify';
+      syncButton.innerHTML = '<i data-lucide="loader-circle"></i>Refreshing Spotify';
     }
     if(!quiet && syncStatus){
-      syncStatus.innerHTML = '<i data-lucide="loader-circle"></i> Syncing Spotify…';
+      syncStatus.innerHTML = '<i data-lucide="loader-circle"></i> Refreshing Spotify…';
       refreshLucide();
     }
 
     try{
       const payload = await invokeSpotify({action:'sync'});
       const result = mergeSpotifyData(payload);
-      await uploadLocalData();
-      if(!quiet && syncStatus) syncStatus.innerHTML = '<i data-lucide="check-circle-2"></i> Spotify synced just now';
+      if(!quiet && syncStatus) syncStatus.innerHTML = '<i data-lucide="check-circle-2"></i> Spotify refreshed';
       if(!quiet) showToast(`${result.total} Spotify episode${result.total === 1 ? '' : 's'} synced`);
     }catch(error){
       console.error(error);
-      if(!quiet && syncStatus) syncStatus.innerHTML = '<i data-lucide="circle-alert"></i> Spotify sync failed';
-      if(!quiet) showToast(error.message || 'Spotify sync failed');
+      if(!quiet && syncStatus) syncStatus.innerHTML = '<i data-lucide="circle-alert"></i> Spotify refresh failed';
+      if(!quiet) showToast(error.message || 'Spotify refresh failed');
       if(/relink|authorization expired|not linked/i.test(error.message || '')) await updateSpotifyStatus();
     }finally{
       spotifyBusy = false;
       if(!quiet && syncButton){
         syncButton.disabled = false;
         syncButton.classList.remove('spotify-syncing');
-        syncButton.innerHTML = '<i data-lucide="radio"></i>Sync Spotify';
+        syncButton.innerHTML = '<i data-lucide="radio"></i>Refresh Spotify';
         refreshLucide();
       }
     }
@@ -474,7 +477,7 @@
       else await startSpotifyLink();
     },true);
 
-    const syncButton = document.querySelector('[data-sync="spotify"]');
+    const syncButton = document.querySelector('[data-transfer="spotify"]');
     syncButton?.addEventListener('click',async event => {
       event.preventDefault();
       event.stopImmediatePropagation();
@@ -496,8 +499,7 @@
     window.startupLoader?.setStatus?.('Checking Spotify…');
     const status = await updateSpotifyStatus();
     if(status.connected && !callbackRequested()){
-      window.startupLoader?.setStatus?.('Syncing Spotify…');
-      await syncSpotifyEpisodes({quiet:true});
+      window.startupLoader?.setStatus?.('Spotify is connected');
     }
   }
 

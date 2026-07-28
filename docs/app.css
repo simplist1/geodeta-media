@@ -36,3 +36,13 @@ body.startup-loading{overflow:hidden}
 .setting-toggle input:checked + .setting-toggle-track{background:var(--accent)}
 .setting-toggle input:checked + .setting-toggle-track::after{transform:translateX(20px)}
 .setting-toggle input:focus-visible + .setting-toggle-track{outline:3px solid var(--soft);outline-offset:3px}
+
+.library-update-banner{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 12px;padding:14px 15px;border:1px solid rgba(91,92,226,.24);border-radius:18px;background:var(--soft);color:var(--text)}
+.library-update-banner[hidden]{display:none}
+.library-update-banner strong,.library-update-banner span{display:block}
+.library-update-banner span{margin-top:3px;color:var(--muted);font-size:12px}
+.library-safety-card{margin-bottom:12px}
+.library-transfer-actions{margin-bottom:8px}
+.library-read-only #addGroup,.library-read-only #addEpisode,.library-read-only #addSubcategory,.library-read-only #collectionHeaderEdit,.library-read-only #createCollection,.library-read-only #saveEpisode,.library-read-only #importLibrary{opacity:.45;cursor:not-allowed}
+.library-read-only .collection-edit,.library-read-only .collection-delete,.library-read-only .episode-edit,.library-read-only .episode-delete,.library-read-only .drag-handle{display:none}
+.library-read-only .group-card,.library-read-only .episode{cursor:default}

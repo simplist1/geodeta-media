@@ -160,9 +160,14 @@
     mount.querySelectorAll('.explorer-category').forEach(card => {
       const id = card.dataset.id;
       card.addEventListener('click',event => { if(!event.target.closest('button')) openCollection(id); });
-      card.querySelector('.collection-edit')?.addEventListener('click',event => { event.stopPropagation(); openCollectionSheet(id); });
+      card.querySelector('.collection-edit')?.addEventListener('click',event => {
+        event.stopPropagation();
+        if(!requireLibraryWrite()) return;
+        openCollectionSheet(id);
+      });
       card.querySelector('.collection-delete')?.addEventListener('click',event => {
         event.stopPropagation();
+        if(!requireLibraryWrite()) return;
         const item = byId(id);
         if(!item) return;
         const nested = descendants(id);
@@ -258,6 +263,7 @@
   renderAll = function(){
     renderCollections();
     renderRecent();
+    applyReadOnlyUi();
     if(activeCollection){
       activeCollection = byId(activeCollection.id);
       if(activeCollection){ renderSubcategories(); renderEpisodes(); }
@@ -266,6 +272,10 @@
   };
 
   enableCollectionDrag = function(card,parent,mount){
+    if(isLibraryReadOnly()){
+      card.draggable = false;
+      return;
+    }
     let touchPointerActive = false;
     card.addEventListener('pointerdown',event => {
       touchPointerActive = event.pointerType === 'touch';
@@ -321,6 +331,7 @@
   };
 
   syncCollectionOrder = function(parent=null,mount=document.querySelector('#groups')){
+    if(!requireLibraryWrite()) return;
     const normalizedParent = parent || null;
     const ids = [...mount.querySelectorAll('.explorer-category')]
       .map(card => card.dataset.id)
@@ -345,6 +356,7 @@
 
   const originalOpenCollectionSheet = openCollectionSheet;
   openCollectionSheet = function(id=null){
+    if(!requireLibraryWrite()) return;
     const item = id ? byId(id) : null;
     const parent = item ? parentOf(item) : preferredParent || (activeCollection && activeCollection.id !== ROOT ? activeCollection.id : null);
     preferredParent = null;
@@ -355,6 +367,7 @@
   };
 
   saveCollection = function(){
+    if(!requireLibraryWrite()) return;
     const name = document.querySelector('#collectionName').value.trim();
     if(!name){ showToast('Enter a category name'); return; }
     const parentId = document.querySelector('#collectionParent').value || null;
@@ -371,6 +384,7 @@
 
   const originalOpenEpisodeSheet = openEpisodeSheet;
   openEpisodeSheet = function(id=null){
+    if(!requireLibraryWrite()) return;
     const ep = id ? state.episodes.find(item => item.id === id) : null;
     const selected = ep?.groups?.find(group => group !== ROOT) || (activeCollection && activeCollection.id !== ROOT ? activeCollection.id : ROOT);
     renderEpisodeCategory(selected);
@@ -379,6 +393,7 @@
 
   const originalSaveEpisode = saveEpisode;
   saveEpisode = async function(){
+    if(!requireLibraryWrite()) return;
     const before = new Set(state.episodes.map(ep => ep.id));
     const editId = editingEpisodeId;
     const category = document.querySelector('#episodeCategory')?.value || ROOT;
@@ -470,6 +485,7 @@
       const id = card.dataset.id;
       card.querySelector('.episode-delete')?.addEventListener('click',event => {
         event.stopPropagation();
+        if(!requireLibraryWrite()) return;
         const ep = state.episodes.find(item => item.id === id);
         openDelete(`Delete “${ep?.title || 'this episode'}”?`,'This removes it from every category and from your synced metadata.',async () => {
           window.mediaSync?.registerEpisodeDeletion(ep);
@@ -481,7 +497,11 @@
           showToast('Episode deleted');
         });
       });
-      card.querySelector('.episode-edit')?.addEventListener('click',event => { event.stopPropagation(); openEpisodeSheet(id); });
+      card.querySelector('.episode-edit')?.addEventListener('click',event => {
+        event.stopPropagation();
+        if(!requireLibraryWrite()) return;
+        openEpisodeSheet(id);
+      });
       card.querySelector('.episode-main')?.addEventListener('click',() => openPlayer(id));
     });
     window.lucide?.createIcons();
@@ -559,6 +579,7 @@
   const episodeDuplicate = imported => state.episodes.find(existing => existing.id === imported.id || (imported.url && existing.url === imported.url) || (existing.source === imported.source && existing.title?.trim().toLowerCase() === imported.title?.trim().toLowerCase() && (existing.tag || '').trim().toLowerCase() === (imported.tag || '').trim().toLowerCase())) || null;
 
   async function importPayload(payload,zip=null){
+    if(!requireLibraryWrite()) return;
     if(payload?.format !== 'geodeta-media-library' || !Array.isArray(payload.collections) || !Array.isArray(payload.episodes)) throw new Error('This is not a Geodeta Media export');
     const importedCollections = payload.collections.map(item => ({...item,parentId:item.parentId || item.parent_id || null}));
     let duplicateCount = importedCollections.filter(item => state.collections.some(existing => existing.id === item.id)).length + payload.episodes.filter(episodeDuplicate).length;
@@ -640,7 +661,9 @@
     const parent = parentOf(activeCollection);
     if(parent) openCollection(parent); else showView(document.querySelector('#libraryView'));
   },true);
-  document.querySelector('#addSubcategory')?.addEventListener('click',() => { preferredParent = activeCollection?.id && activeCollection.id !== ROOT ? activeCollection.id : null; openCollectionSheet(); });
+  document.querySelector('#addSubcategory')?.addEventListener('click',() => {
+    if(!requireLibraryWrite()) return;
+    preferredParent = activeCollection?.id && activeCollection.id !== ROOT ? activeCollection.id : null; openCollectionSheet(); });
   document.querySelector('#cancelDelete')?.addEventListener('click',closeDelete);
   document.querySelector('#confirmDelete')?.addEventListener('click',async () => { const action = deleteAction; closeDelete(); await action?.(); });
   document.querySelector('#deleteConfirm')?.addEventListener('click',event => { if(event.target.id === 'deleteConfirm') closeDelete(); });
@@ -649,7 +672,10 @@
   document.querySelector('#duplicateReplace')?.addEventListener('click',() => finishDuplicate('replace'));
   document.querySelector('#exportLibrary')?.addEventListener('click',exportJson);
   document.querySelector('#exportMedia')?.addEventListener('click',exportZip);
-  document.querySelector('#importLibrary')?.addEventListener('click',() => document.querySelector('#importLibraryFile').click());
+  document.querySelector('#importLibrary')?.addEventListener('click',() => {
+    if(!requireLibraryWrite()) return;
+    document.querySelector('#importLibraryFile').click();
+  });
   document.querySelector('#importLibraryFile')?.addEventListener('change',event => importFile(event.target.files[0]));
 
   document.addEventListener('DOMContentLoaded',async () => {

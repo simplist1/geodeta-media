@@ -10,6 +10,7 @@
   let suppressClickUntil = 0;
 
   const isFinePointer = () => window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  const libraryWritable = () => typeof isLibraryReadOnly !== 'function' || !isLibraryReadOnly();
   const isPhonePointer = event => event.pointerType === 'touch' || event.pointerType === 'pen';
 
   function spotifyEpisodeUrl(value=''){
@@ -95,6 +96,7 @@
   }
 
   function reorderStateFromContainer(container){
+    if(!libraryWritable()) return false;
     if(typeof state === 'undefined' || !Array.isArray(state.episodes)) return false;
     const orderedIds = [...container.querySelectorAll('.episode[data-id]')].map(card => card.dataset.id);
     if(orderedIds.length < 2) return false;
@@ -130,7 +132,7 @@
   }
 
   function canReorderEpisodes(container){
-    return isFinePointer() && episodeListCanReorder(container);
+    return libraryWritable() && isFinePointer() && episodeListCanReorder(container);
   }
 
   function bindEpisodeDrag(card,container){
@@ -184,6 +186,7 @@
   }
 
   function reorderCollectionsFromContainer(container,parentId){
+    if(!libraryWritable()) return false;
     if(typeof state === 'undefined' || !Array.isArray(state.collections)) return false;
     const normalizedParent = parentId || null;
     const orderedIds = [...container.querySelectorAll('.explorer-category[data-id],.group-card[data-id]')]
@@ -230,6 +233,7 @@
   }
 
   function canStartMobileReorder(gesture){
+    if(!libraryWritable()) return false;
     if(gesture.type === 'episode'){
       return episodeListCanReorder(gesture.container)
         && gesture.container.querySelectorAll('.episode[data-id]').length > 1;
@@ -272,6 +276,7 @@
 
   function bindMobileGestures(card,type){
     card.addEventListener('touchstart',event => {
+      if(!libraryWritable()) return;
       if(event.touches.length !== 1 || activeMobileGesture) return;
       const interactive = event.target.closest('button,input,a,select,textarea');
       if(interactive && !interactive.classList.contains('drag-handle')) return;

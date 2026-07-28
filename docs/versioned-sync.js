@@ -1,16 +1,12 @@
 (() => {
   const rootId = 'all';
   const originalDownloadRemoteData = downloadRemoteData;
-  const originalPerformAutoSync = performAutoSync;
   const originalRunSync = runSync;
   let syncTail = Promise.resolve();
   let syncConflict = null;
-  let autoSyncPromise = null;
-  let autoSyncPending = false;
-  let autoSyncIncludeFiles = false;
 
   function runLocked(task){
-    const execute = () => syncConflict ? undefined : task();
+    const execute = () => task();
     const run = syncTail.then(execute,execute);
     syncTail = run.catch(() => undefined);
     return run;
@@ -44,8 +40,6 @@
 
   const CONFLICT_BACKUP_KEY = 'geodetaSyncConflictBackups';
   const MAX_CONFLICT_BACKUPS = 20;
-  const MAX_CONFLICT_REBASE_RETRIES = 3;
-
   function sameValue(left,right){
     return stable(left) === stable(right);
   }
@@ -269,8 +263,8 @@
   async function fetchRemoteSnapshot(){
     const userId = currentUser.id;
     const [collectionsResult,episodesResult,relationsResult] = await Promise.all([
-      db().from('collections').select('*').eq('user_id',userId).is('deleted_at',null),
-      db().from('episodes').select('*').eq('user_id',userId).is('deleted_at',null),
+      db().from('collections').select('*').eq('user_id',userId),
+      db().from('episodes').select('*').eq('user_id',userId),
       db().from('collection_episodes').select('collection_id,episode_id,position')
     ]);
     for(const result of [collectionsResult,episodesResult,relationsResult]){
@@ -287,6 +281,7 @@
       row.id,
       {
         version:Number(row.version) || 1,
+        deleted:Boolean(row.deleted_at),
         canonical:{
           name:row.name,
           icon:row.icon,
@@ -301,6 +296,7 @@
       row.id,
       {
         version:Number(row.version) || 1,
+        deleted:Boolean(row.deleted_at),
         canonical:{
           title:row.title,
           tag:row.tag || 'Episode',
@@ -331,6 +327,76 @@
     return {collections,episodes};
   }
 
+  function setUpdateAvailable(available,conflict=null){
+    const banner = document.querySelector('#libraryUpdateBanner');
+    if(banner) banner.hidden = !available;
+    const status = document.querySelector('#syncStatus');
+    if(status){
+      status.innerHTML = available
+        ? '<i data-lucide="cloud-download"></i> Updates available'
+        : localStorage.getItem(DIRTY_KEY) === 'true'
+          ? '<i data-lucide="cloud-upload"></i> Changes ready to upload'
+          : '<i data-lucide="check-circle-2"></i> Up to date';
+    }
+    document.body.classList.toggle('library-update-available',available);
+    if(conflict) syncConflict = conflictError(conflict);
+    else if(!available) syncConflict = null;
+    window.lucide?.createIcons();
+  }
+
+  function remoteHasUpdates(remote){
+    const deleted = tombstones();
+    const localCollectionIds = new Set(
+      state.collections.filter(item => item.id !== rootId).map(item => item.id)
+    );
+    const localEpisodeIds = new Set(state.episodes.map(item => item.id));
+
+    for(const item of state.collections){
+      if(item.id === rootId) continue;
+      const record = remote.collections.get(item.id);
+      const version = Number(item._version) || 0;
+      if(version > 0 && (!record || record.deleted || record.version !== version)) return true;
+      if(version === 0 && record) return true;
+    }
+    for(const item of state.episodes){
+      const record = remote.episodes.get(item.id);
+      const version = Number(item._version) || 0;
+      if(version > 0 && (!record || record.deleted || record.version !== version)) return true;
+      if(version === 0 && record) return true;
+    }
+
+    for(const [id,record] of remote.collections){
+      if(!record.deleted && !localCollectionIds.has(id) && !(id in deleted.collections)) return true;
+    }
+    for(const [id,record] of remote.episodes){
+      if(!record.deleted && !localEpisodeIds.has(id) && !(id in deleted.episodes)) return true;
+    }
+
+    for(const [id,expected] of Object.entries(deleted.collections)){
+      const record = remote.collections.get(id);
+      if(!record || record.deleted || record.version !== Number(expected)) return true;
+    }
+    for(const [id,expected] of Object.entries(deleted.episodes)){
+      const record = remote.episodes.get(id);
+      if(!record || record.deleted || record.version !== Number(expected)) return true;
+    }
+    return false;
+  }
+
+  async function checkForUpdates(){
+    if(!currentUser) return false;
+    const available = remoteHasUpdates(await fetchRemoteSnapshot());
+    setUpdateAvailable(available);
+    return available;
+  }
+
+  function updatesAvailableError(conflict=null){
+    const error = new Error('Updates are available. Download Updates before uploading changes.');
+    error.code = 'REMOTE_UPDATES_AVAILABLE';
+    error.conflict = conflict;
+    return error;
+  }
+
   async function ensureBaselines(){
     if(!currentUser) throw new Error('Sign in with Google first');
     const missing = state.collections.some(item =>
@@ -342,14 +408,14 @@
     state.collections.forEach(item => {
       if(item.id === rootId || (item._syncBase && Number(item._version))) return;
       const record = remote.collections.get(item.id);
-      item._version = record?.version || 0;
-      item._syncBase = record?.canonical || null;
+      item._version = record && !record.deleted ? record.version : 0;
+      item._syncBase = record && !record.deleted ? record.canonical : null;
     });
     state.episodes.forEach(ep => {
       if(ep._syncBase && Number(ep._version)) return;
       const record = remote.episodes.get(ep.id);
-      ep._version = record?.version || 0;
-      ep._syncBase = record?.canonical || null;
+      ep._version = record && !record.deleted ? record.version : 0;
+      ep._syncBase = record && !record.deleted ? record.canonical : null;
     });
     saveState(false);
   }
@@ -442,7 +508,7 @@
     saveState(false);
   }
 
-  uploadLocalData = async function(conflictRetries=0){
+  uploadLocalData = async function(){
     if(!currentUser) throw new Error('Sign in with Google first');
     normalizeIds();
     await ensureBaselines();
@@ -450,7 +516,14 @@
     if(!hasChanges(changes)){
       localStorage.setItem(DIRTY_KEY,'false');
       saveState(false);
+      await checkForUpdates();
       return;
+    }
+
+    const remote = await fetchRemoteSnapshot();
+    if(remoteHasUpdates(remote)){
+      setUpdateAvailable(true);
+      throw updatesAvailableError();
     }
 
     const {data,error} = await db().rpc('sync_media_changes',{
@@ -463,17 +536,12 @@
     });
     const conflict = conflictFrom(error,data);
     if(conflict){
-      if(
-        conflictRetries < MAX_CONFLICT_REBASE_RETRIES &&
-        await resolveConflict(conflict)
-      ){
-        return uploadLocalData(conflictRetries + 1);
-      }
-      syncConflict = conflictError(conflict);
-      throw syncConflict;
+      setUpdateAvailable(true,conflict);
+      throw updatesAvailableError(conflict);
     }
     if(error) throw error;
     applyResults(changes,data || {});
+    setUpdateAvailable(false);
   };
 
   downloadRemoteData = async function(){
@@ -483,8 +551,8 @@
     state.collections.forEach(item => {
       if(item.id === rootId) return;
       const record = remote.collections.get(item.id);
-      item._version = record?.version || 0;
-      item._syncBase = record?.canonical || null;
+      item._version = record && !record.deleted ? record.version : 0;
+      item._syncBase = record && !record.deleted ? record.canonical : null;
       item.sortOrder = record?.canonical.sort_order ?? 0;
     });
     state.episodes.forEach(ep => {
@@ -496,40 +564,22 @@
     state.syncTombstones = {collections:{},episodes:{}};
     syncConflict = null;
     localStorage.setItem(DIRTY_KEY,'false');
+    setUpdateAvailable(false);
     saveState(false);
     return downloaded;
   };
 
   syncData = async function(){
     if(!currentUser) throw new Error('Sign in with Google first');
-    const dirty = localStorage.getItem(DIRTY_KEY) === 'true';
-    const hasBaseline = state.collections.some(item => item.id !== rootId && item._syncBase) ||
-      state.episodes.some(ep => ep._syncBase);
-    if(!dirty && !hasBaseline) return downloadRemoteData();
-    if(dirty){
-      await ensureBaselines();
-      return uploadLocalData();
-    }
-    const changes = pendingChanges();
-    return hasChanges(changes) ? uploadLocalData() : downloadRemoteData();
+    return downloadRemoteData();
   };
 
-  performAutoSync = function(options={}){
-    autoSyncPending = true;
-    autoSyncIncludeFiles ||= Boolean(options.includeFiles);
-    if(autoSyncPromise) return autoSyncPromise;
-
-    autoSyncPromise = runLocked(async () => {
-      do{
-        autoSyncPending = false;
-        const includeFiles = autoSyncIncludeFiles;
-        autoSyncIncludeFiles = false;
-        await originalPerformAutoSync({includeFiles});
-      }while(autoSyncPending && !syncConflict);
-    }).finally(() => {
-      autoSyncPromise = null;
-    });
-    return autoSyncPromise;
+  performAutoSync = async function(){
+    const status = document.querySelector('#syncStatus');
+    if(status && currentUser){
+      status.innerHTML = '<i data-lucide="cloud-upload"></i> Changes ready to upload';
+      window.lucide?.createIcons();
+    }
   };
 
   runSync = function(type,quiet=false){
@@ -543,6 +593,8 @@
     hasConflict:() => Boolean(syncConflict),
     registerCollectionDeletion:item => registerDeletion('collections',item),
     registerEpisodeDeletion:item => registerDeletion('episodes',item),
-    pendingChanges
+    pendingChanges,
+    checkForUpdates,
+    hasRemoteUpdates:() => Boolean(document.body.classList.contains('library-update-available'))
   };
 })();

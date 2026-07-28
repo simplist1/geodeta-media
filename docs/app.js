@@ -5,6 +5,8 @@ const db = () => window.supabaseClient;
 
 const STORAGE_KEY = 'geodetaUiStateV3';
 const DIRTY_KEY = 'geodetaUiDirty';
+const READ_ONLY_KEY = 'geodetaLibraryReadOnly';
+const DOWNLOAD_BACKUP_KEY = 'geodetaBeforeDownloadBackup';
 const iconNames = ['library','heart','bookmark','clock','headphones','mic-2','music','radio','star','sparkles','flame','bike','plane','globe-2','briefcase','brain','book-open','film','tv','gamepad-2','coffee','dumbbell','leaf','lightbulb','rocket','camera','palette','message-circle','users','folder','archive','circle-play','list-music','podcast','newspaper','graduation-cap','badge-dollar-sign','wrench','cpu'];
 const colors = ['#5b5ce2','#ff6b6b','#f59e0b','#10b981','#0ea5e9','#8b5cf6','#ec4899','#334155'];
 const pendingAudioFiles = new Map();
@@ -52,6 +54,13 @@ let draftArtworkSource = 'default';
 let draftLocalUrl = '';
 let spotifyArtworkTimer = null;
 let currentUser = null;
+let libraryReadOnly = (() => {
+  try{
+    return localStorage.getItem(READ_ONLY_KEY) !== 'false';
+  }catch(error){
+    return true;
+  }
+})();
 
 let profileNickname = localStorage.getItem('geodetaNickname') || 'Som';
 let profilePhoto = localStorage.getItem('geodetaProfilePhoto') || '';
@@ -59,9 +68,6 @@ let profileAvatarPath = localStorage.getItem('geodetaProfileAvatarPath') || '';
 let pendingProfilePhotoFile = null;
 let profileSaveTimer = null;
 
-let autoSyncTimer = null;
-let autoSyncRunning = false;
-let autoSyncAgain = false;
 
 function normalizeTimeLabel(value){
   const raw = String(value || '').trim();
@@ -94,6 +100,40 @@ function showToast(text){
   toast.classList.add('show');
   clearTimeout(showToast.timer);
   showToast.timer = setTimeout(() => toast.classList.remove('show'), 1800);
+}
+
+function isLibraryReadOnly(){
+  return libraryReadOnly;
+}
+
+function requireLibraryWrite(){
+  if(!libraryReadOnly) return true;
+  showToast('Turn off Read Only to change the library');
+  return false;
+}
+
+function applyReadOnlyUi(){
+  document.body.classList.toggle('library-read-only',libraryReadOnly);
+  const toggle = $('#readOnlyToggle');
+  if(toggle) toggle.checked = libraryReadOnly;
+  [
+    '#addGroup','#addEpisode','#addSubcategory','#collectionHeaderEdit',
+    '#createCollection','#saveEpisode','#importLibrary'
+  ].forEach(selector => {
+    const control = $(selector);
+    if(control) control.disabled = libraryReadOnly;
+  });
+}
+
+function setLibraryReadOnly(enabled){
+  libraryReadOnly = Boolean(enabled);
+  try{
+    localStorage.setItem(READ_ONLY_KEY,String(libraryReadOnly));
+  }catch(error){}
+  if(libraryReadOnly) closeSheets();
+  applyReadOnlyUi();
+  renderAll();
+  showToast(libraryReadOnly ? 'Read Only enabled' : 'Library editing enabled');
 }
 
 function openSheet(selector){
@@ -204,6 +244,7 @@ function wireEpisodes(container){
 
     card.querySelector('.episode-delete').addEventListener('click', async event => {
       event.stopPropagation();
+      if(!requireLibraryWrite()) return;
       const removedEpisode = state.episodes.find(ep => ep.id === id);
       window.mediaSync?.registerEpisodeDeletion(removedEpisode);
       state.episodes = state.episodes.filter(ep => ep.id !== id);
@@ -217,6 +258,7 @@ function wireEpisodes(container){
 
     card.querySelector('.episode-edit').addEventListener('click', event => {
       event.stopPropagation();
+      if(!requireLibraryWrite()) return;
       openEpisodeSheet(id);
     });
 
@@ -264,11 +306,13 @@ function renderCollections(){
 
     card.querySelector('.collection-edit').addEventListener('click', event => {
       event.stopPropagation();
+      if(!requireLibraryWrite()) return;
       openCollectionSheet(id);
     });
 
     card.querySelector('.collection-delete').addEventListener('click', async event => {
       event.stopPropagation();
+      if(!requireLibraryWrite()) return;
 
       const removedCollection = state.collections.find(collection => collection.id === id);
       window.mediaSync?.registerCollectionDeletion(removedCollection);
@@ -291,6 +335,10 @@ function renderCollections(){
 }
 
 function enableCollectionDrag(card){
+  if(isLibraryReadOnly()){
+    card.draggable = false;
+    return;
+  }
   let touchPointerActive = false;
   card.addEventListener('pointerdown',event => {
     touchPointerActive = event.pointerType === 'touch';
@@ -362,6 +410,7 @@ function enableCollectionDrag(card){
 }
 
 function syncCollectionOrder(){
+  if(!requireLibraryWrite()) return;
   const order = $$('.group-card').map(card => card.dataset.id);
   state.collections.sort((a,b) => order.indexOf(a.id) - order.indexOf(b.id));
   saveState();
@@ -416,6 +465,7 @@ function renderEpisodes(){
 function renderAll(){
   renderCollections();
   renderRecent();
+  applyReadOnlyUi();
 
   if(activeCollection){
     activeCollection = state.collections.find(
@@ -456,6 +506,7 @@ function renderColors(){
 }
 
 function openCollectionSheet(id=null){
+  if(!requireLibraryWrite()) return;
   editingCollectionId = id;
   const collection = id
     ? state.collections.find(item => item.id === id)
@@ -480,6 +531,7 @@ function openCollectionSheet(id=null){
 }
 
 function saveCollection(){
+  if(!requireLibraryWrite()) return;
   const name = $('#collectionName').value.trim();
   if(!name){
     showToast('Enter a collection name');
@@ -623,6 +675,7 @@ function extractSpotifyEmbed(url){
 }
 
 function openEpisodeSheet(id=null){
+  if(!requireLibraryWrite()) return;
   editingEpisodeId = id;
   const ep = id ? state.episodes.find(item => item.id === id) : null;
 
@@ -650,6 +703,7 @@ function openEpisodeSheet(id=null){
 }
 
 async function saveEpisode(){
+  if(!requireLibraryWrite()) return;
   const title = $('#episodeTitle').value.trim() || 'Untitled episode';
   const tag = $('#episodeTag').value.trim() || sourceInfo(addSource).label;
   const existing = editingEpisodeId
@@ -1095,8 +1149,6 @@ async function downloadRemoteData(){
 
   await loadRemoteProfile(profileResult.data);
 
-  if(!collectionResult.data.length && !episodeResult.data.length) return false;
-
   const relationMap = new Map();
   relationResult.data.forEach(row => {
     if(!relationMap.has(row.episode_id)) relationMap.set(row.episode_id, []);
@@ -1109,7 +1161,9 @@ async function downloadRemoteData(){
       id: row.id,
       name: row.name,
       icon: row.icon,
-      color: row.color
+      color: row.color,
+      parentId: row.parent_id || null,
+      sortOrder: Number(row.sort_order ?? row.position) || 0
     }))
   ];
 
@@ -1238,7 +1292,7 @@ function setEpisodeSyncStatus(status, episodeId=null){
   renderAll();
 }
 
-function queueAutoSync({episodeId=null,includeFiles=false}={}){
+function queueAutoSync({episodeId=null}={}){
   if(episodeId){
     const ep = state.episodes.find(item => item.id === episodeId);
     if(ep) ep.syncStatus = currentUser ? 'pending' : 'local';
@@ -1246,104 +1300,91 @@ function queueAutoSync({episodeId=null,includeFiles=false}={}){
 
   saveState();
   renderAll();
-
-  if(!currentUser) return;
-
-  clearTimeout(autoSyncTimer);
-  autoSyncTimer = setTimeout(
-    () => performAutoSync({includeFiles}),
-    500
-  );
+  const status = $('#syncStatus');
+  if(status && currentUser){
+    status.innerHTML = '<i data-lucide="cloud-upload"></i> Changes ready to upload';
+    refreshIcons();
+  }
 }
 
-async function performAutoSync({includeFiles=false}={}){
-  if(!currentUser) return;
-
-  if(autoSyncRunning){
-    autoSyncAgain = true;
-    return;
+async function performAutoSync(){
+  const status = $('#syncStatus');
+  if(status && currentUser){
+    status.innerHTML = '<i data-lucide="cloud-upload"></i> Changes ready to upload';
+    refreshIcons();
   }
+}
 
-  autoSyncRunning = true;
-  setEpisodeSyncStatus('syncing');
-  $('#syncStatus').innerHTML = '<i data-lucide="loader-circle"></i> Auto syncing…';
+async function runLibraryTransfer(type,quiet=false){
+  const status = $('#syncStatus');
+  const label = type === 'upload' ? 'Uploading changes…' : 'Downloading updates…';
+  status.innerHTML = `<i data-lucide="loader-circle"></i> ${label}`;
   refreshIcons();
 
   try{
-    const hasPendingFiles =
-      includeFiles ||
-      pendingAudioFiles.size > 0 ||
-      state.episodes.some(ep =>
-        ep.artSource === 'custom' &&
-        ep.artImage?.startsWith('data:') &&
-        !ep.artworkPath
-      );
-
-    if(hasPendingFiles) await syncFiles();
-    else await uploadLocalData();
-
-    state.episodes.forEach(ep => {
-      ep.syncStatus = 'synced';
-    });
+    if(!currentUser) throw new Error('Sign in with Google first');
+    if(type === 'upload'){
+      if(await window.mediaSync?.checkForUpdates?.()){
+        const error = new Error('Updates are available. Download Updates before uploading changes.');
+        error.code = 'REMOTE_UPDATES_AVAILABLE';
+        throw error;
+      }
+      const hasPendingFiles =
+        pendingAudioFiles.size > 0 ||
+        state.episodes.some(ep =>
+          ep.artSource === 'custom' &&
+          ep.artImage?.startsWith('data:') &&
+          !ep.artworkPath
+        );
+      if(hasPendingFiles) await syncFiles();
+      else await uploadLocalData();
+      state.episodes.forEach(ep => {
+        if(!ep._syncConflict) ep.syncStatus = 'synced';
+      });
+      status.innerHTML = '<i data-lucide="check-circle-2"></i> Changes uploaded';
+      if(!quiet) showToast('Changes uploaded');
+    }else if(type === 'download'){
+      const dirty = localStorage.getItem(DIRTY_KEY) === 'true';
+      if(dirty){
+        const confirmed = window.confirm(
+          'This device has changes that have not been uploaded. A local backup will be saved before cloud updates replace them. Continue?'
+        );
+        if(!confirmed){
+          status.innerHTML = '<i data-lucide="cloud-upload"></i> Changes ready to upload';
+          refreshIcons();
+          return;
+        }
+        try{
+          localStorage.setItem(DOWNLOAD_BACKUP_KEY,JSON.stringify({
+            savedAt:new Date().toISOString(),
+            state
+          }));
+        }catch(error){}
+      }
+      await downloadRemoteData();
+      status.innerHTML = '<i data-lucide="check-circle-2"></i> Updates downloaded';
+      if(!quiet) showToast('Updates downloaded');
+    }
     saveState(false);
     renderAll();
-    $('#syncStatus').innerHTML = '<i data-lucide="check-circle-2"></i> Synced just now';
   }catch(error){
     console.error(error);
-    setEpisodeSyncStatus('error');
-    $('#syncStatus').innerHTML = '<i data-lucide="circle-alert"></i> Auto sync failed';
-    showToast('Auto sync failed');
-  }finally{
-    autoSyncRunning = false;
-    refreshIcons();
-
-    if(autoSyncAgain){
-      autoSyncAgain = false;
-      setTimeout(() => performAutoSync(), 250);
-    }
+    status.innerHTML = error?.code === 'REMOTE_UPDATES_AVAILABLE'
+      ? '<i data-lucide="cloud-download"></i> Updates available'
+      : '<i data-lucide="circle-alert"></i> Transfer failed';
+    if(!quiet) showToast(error.message || 'Transfer failed');
   }
+
+  refreshIcons();
 }
 
 async function runSync(type,quiet=false){
-  const status = $('#syncStatus');
-  status.innerHTML = `<i data-lucide="loader-circle"></i> Syncing ${type}…`;
-  refreshIcons();
-
-  try{
-    if(type === 'data') await syncData();
-    if(type === 'files') await syncFiles();
-    if(type === 'all'){
-      await syncFiles();
-      await syncData();
-    }
-    if(type === 'spotify'){
-      showToast('Spotify position sync needs Spotify OAuth');
-    }
-
-    state.episodes.forEach(ep => {
-      ep.syncStatus = currentUser ? 'synced' : 'local';
-    });
-    saveState(false);
-    renderAll();
-
-    status.innerHTML = '<i data-lucide="check-circle-2"></i> Synced just now';
-    if(!quiet && type !== 'spotify'){
-      showToast(type === 'all'
-        ? 'Everything synced'
-        : `${type[0].toUpperCase() + type.slice(1)} synced`
-      );
-    }
-  }catch(error){
-    console.error(error);
-    state.episodes.forEach(ep => {
-      if(ep.syncStatus !== 'local') ep.syncStatus = 'error';
-    });
-    renderAll();
-    status.innerHTML = '<i data-lucide="circle-alert"></i> Sync failed';
-    if(!quiet) showToast(error.message || 'Sync failed');
+  const mapped = type === 'data' ? 'download' : type === 'spotify' ? 'spotify' : 'upload';
+  if(mapped === 'spotify'){
+    if(typeof syncSpotifyEpisodes === 'function') return syncSpotifyEpisodes({quiet});
+    return;
   }
-
-  refreshIcons();
+  return runLibraryTransfer(mapped,quiet);
 }
 
 async function setupAuth(){
@@ -1442,8 +1483,13 @@ function bindEvents(){
     });
   });
 
-  $$('.sync-button').forEach(button => {
-    button.addEventListener('click', () => runSync(button.dataset.sync));
+  $$('[data-transfer]').forEach(button => {
+    if(button.dataset.transfer === 'spotify') return;
+    button.addEventListener('click', () => runLibraryTransfer(button.dataset.transfer));
+  });
+  $('#bannerDownloadUpdates')?.addEventListener('click',() => runLibraryTransfer('download'));
+  $('#readOnlyToggle')?.addEventListener('change',event => {
+    setLibraryReadOnly(event.target.checked);
   });
 
   $('#googleLink').addEventListener('click', handleGoogleButton);
@@ -1459,10 +1505,10 @@ async function init(){
     window.startupLoader?.setStatus?.('Checking your session…');
     await setupAuth();
     if(currentUser){
-      await window.startupLoader?.syncCollections?.(currentUser.id);
-      window.startupLoader?.setStatus?.('Syncing library…');
-      await runSync('data',true);
+      window.startupLoader?.setStatus?.('Checking for updates…');
+      await window.mediaSync?.checkForUpdates?.();
     }
+    applyReadOnlyUi();
   }finally{
     window.dispatchEvent(new Event('geodeta:data-startup-ready'));
   }

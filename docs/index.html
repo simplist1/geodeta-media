@@ -20,16 +20,16 @@
   <meta name="apple-mobile-web-app-title" content="Geodeta Media">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <title>Geodeta Media</title>
-  <link rel="manifest" href="./manifest.webmanifest?v=20260724-1">
+  <link rel="manifest" href="./manifest.webmanifest?v=20260728-1">
   <link rel="icon" href="./art/icon-192.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./art/icon-192.svg">
-  <link rel="stylesheet" href="./app.css?v=20260724-1">
-  <link rel="stylesheet" href="./app-overrides.css?v=20260724-1">
-  <link rel="stylesheet" href="./update.css?v=20260724-1">
-  <link rel="stylesheet" href="./library-explorer.css?v=20260724-1">
-  <link rel="stylesheet" href="./spotify-integration.css?v=20260724-1">
-  <link rel="stylesheet" href="./pwa.css?v=20260724-1">
-  <link rel="stylesheet" href="./media-interactions.css?v=20260724-1">
+  <link rel="stylesheet" href="./app.css?v=20260728-1">
+  <link rel="stylesheet" href="./app-overrides.css?v=20260728-1">
+  <link rel="stylesheet" href="./update.css?v=20260728-1">
+  <link rel="stylesheet" href="./library-explorer.css?v=20260728-1">
+  <link rel="stylesheet" href="./spotify-integration.css?v=20260728-1">
+  <link rel="stylesheet" href="./pwa.css?v=20260728-1">
+  <link rel="stylesheet" href="./media-interactions.css?v=20260728-1">
 </head>
 <body class="startup-loading">
   <div id="startupLoader" class="startup-loader" role="status" aria-label="Syncing your library">
@@ -91,13 +91,24 @@
         <div class="settings-row"><div class="settings-copy"><strong>Google</strong><span>Use Google for your Geodeta Media account.</span></div><button id="googleLink" class="action-button">Link to Google</button></div>
         <div class="settings-row"><div class="settings-copy"><strong>Spotify</strong><span>Import saved episodes and sync listening positions.</span></div><button id="spotifyLink" class="action-button">Link to Spotify</button></div>
       </div>
-      <div class="section-head"><h2>Sync</h2><span id="syncStatus" class="status-pill"><i data-lucide="check-circle-2"></i> Ready</span></div>
-      <div class="sync-stack">
-        <button class="sync-button primary-sync" data-sync="all"><i data-lucide="refresh-cw"></i>Sync All</button>
-        <div class="sync-gap"></div>
-        <button class="sync-button" data-sync="files"><i data-lucide="cloud-upload"></i>Sync Files</button>
-        <button class="sync-button" data-sync="data"><i data-lucide="database"></i>Sync Data</button>
-        <button class="sync-button" data-sync="spotify"><i data-lucide="radio"></i>Sync Spotify</button>
+      <div class="section-head"><h2>Library Updates</h2><span id="syncStatus" class="status-pill"><i data-lucide="check-circle-2"></i> Up to date</span></div>
+      <div id="libraryUpdateBanner" class="library-update-banner" hidden>
+        <div><strong>Updates available</strong><span>A newer cloud copy is ready to download.</span></div>
+        <button id="bannerDownloadUpdates" class="action-button"><i data-lucide="cloud-download"></i>Download</button>
+      </div>
+      <div class="settings-card library-safety-card">
+        <div class="settings-row">
+          <div class="settings-copy"><strong>Read Only</strong><span>Prevents adding, editing, deleting, importing, or reordering library cards.</span></div>
+          <label class="setting-toggle" aria-label="Keep library read only">
+            <input id="readOnlyToggle" type="checkbox" checked>
+            <span class="setting-toggle-track"></span>
+          </label>
+        </div>
+      </div>
+      <div class="sync-stack library-transfer-actions">
+        <button class="sync-button primary-sync" data-transfer="download"><i data-lucide="cloud-download"></i>Download Updates</button>
+        <button class="sync-button" data-transfer="upload"><i data-lucide="cloud-upload"></i>Upload Changes</button>
+        <button class="sync-button" data-transfer="spotify"><i data-lucide="radio"></i>Refresh Spotify</button>
       </div>
       <div class="app-maintenance">
         <div class="section-head"><h2>App</h2></div>
@@ -107,7 +118,7 @@
             <button id="installApp" class="action-button"><i data-lucide="smartphone"></i>Install</button>
           </div>
           <div class="settings-row">
-            <div class="settings-copy"><strong>Startup loading screen</strong><span>Cover the library until startup syncing is completely finished.</span></div>
+            <div class="settings-copy"><strong>Startup loading screen</strong><span>Cover the library while the app checks your account and available updates.</span></div>
             <label class="setting-toggle" aria-label="Show startup loading screen">
               <input id="startupLoaderToggle" type="checkbox">
               <span class="setting-toggle-track"></span>
@@ -213,15 +224,15 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-  <script src="./supabase.js?v=20260724-1"></script>
-  <script src="./app.js?v=20260724-1"></script>
-  <script src="./library-explorer.js?v=20260724-1"></script>
-  <script src="./profile-autosync.js?v=20260724-1"></script>
-  <script src="./spotify-integration.js?v=20260724-1"></script>
-  <script src="./versioned-sync.js?v=20260724-1"></script>
-  <script src="./startup-loader.js?v=20260724-1"></script>
-  <script src="./media-interactions.js?v=20260724-1"></script>
-  <script src="./pwa.js?v=20260724-1"></script>
-  <script src="./update.js?v=20260724-1"></script>
+  <script src="./supabase.js?v=20260728-1"></script>
+  <script src="./app.js?v=20260728-1"></script>
+  <script src="./library-explorer.js?v=20260728-1"></script>
+  <script src="./profile-autosync.js?v=20260728-1"></script>
+  <script src="./spotify-integration.js?v=20260728-1"></script>
+  <script src="./versioned-sync.js?v=20260728-1"></script>
+  <script src="./startup-loader.js?v=20260728-1"></script>
+  <script src="./media-interactions.js?v=20260728-1"></script>
+  <script src="./pwa.js?v=20260728-1"></script>
+  <script src="./update.js?v=20260728-1"></script>
 </body>
 </html>

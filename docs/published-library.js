@@ -248,7 +248,8 @@
   let preview = null;
   let publishingScope = null;
   let unpublishPreview = null;
-  let unpublishingScope = null;
+  let unpublishMode = '';
+  let preselectedClearCollection = null;
 
   function injectPublisherUi(){
     if(byId('publishLibraryModal')) return;
@@ -279,8 +280,8 @@
             <button id="sharePublishedLibrary" class="action-button" disabled><i data-lucide="share-2"></i>Share</button>
           </div>
           <div class="settings-row">
-            <div class="settings-copy"><strong>Unpublish entire library</strong><span>Hide the public page while keeping its 30-day revision history.</span></div>
-            <button id="unpublishWholeLibrary" class="action-button danger-action" disabled><i data-lucide="eye-off"></i>Unpublish</button>
+            <div class="settings-copy"><strong>Manage published content</strong><span>Hide the page, clear everything, or choose specific public items.</span></div>
+            <button id="unpublishWholeLibrary" class="action-button danger-action" disabled><i data-lucide="settings-2"></i>Manage</button>
           </div>
         </div>
       </section>
@@ -297,11 +298,11 @@
             <button id="selectAllOverrides" class="text-button">Select all</button>
             <button id="clearAllOverrides" class="text-button">Skip all</button>
           </div>
-          <div id="publishCollisionList" class="publish-collision-list"></div>
-          <p class="publish-safety-note"><i data-lucide="shield-check"></i>Unchecked existing items stay exactly as they are online.</p>
+          <div id="publishCollisionList" class="publish-collision-list" hidden></div>
+          <p id="publishSafetyNote" class="publish-safety-note" hidden><i data-lucide="shield-check"></i>Unchecked overrides stay exactly as they are online.</p>
           <div class="publish-modal-actions">
-            <button id="publishSkipExisting" class="secondary">Skip all existing</button>
-            <button id="publishSelected" class="primary">Publish selected overrides</button>
+            <button id="publishSelected" class="secondary">Publish selected</button>
+            <button id="publishAll" class="primary">Publish all</button>
           </div>
         </section>
       </div>
@@ -310,15 +311,24 @@
       <div id="unpublishLibraryModal" class="publish-modal-backdrop" hidden>
         <section class="publish-modal" role="dialog" aria-modal="true" aria-labelledby="unpublishModalTitle">
           <div class="publish-modal-head">
-            <div><p class="eyebrow">SAFE UNPUBLISH</p><h3 id="unpublishModalTitle">Review what will be removed</h3></div>
+            <div><p class="eyebrow">PUBLISHED LIBRARY</p><h3 id="unpublishModalTitle">Choose what to do</h3></div>
             <button id="closeUnpublishModal" class="icon-button" aria-label="Close"><i data-lucide="x"></i></button>
           </div>
           <p id="unpublishSummary" class="publish-summary"></p>
-          <div id="unpublishItemList" class="publish-collision-list"></div>
+          <div id="unpublishChoices" class="unpublish-choice-list">
+            <button id="chooseHidePublished" class="unpublish-choice" type="button"><span><i data-lucide="eye-off"></i></span><strong>Hide</strong><small>Take the page offline but keep all published content stored.</small></button>
+            <button id="chooseClearAllPublished" class="unpublish-choice" type="button"><span><i data-lucide="trash-2"></i></span><strong>Clear all</strong><small>Remove every published collection and episode.</small></button>
+            <button id="chooseClearSelectedPublished" class="unpublish-choice" type="button"><span><i data-lucide="list-checks"></i></span><strong>Clear selected</strong><small>Choose individual collections and episodes to remove.</small></button>
+          </div>
+          <div id="unpublishSelectionControls" class="publish-collision-controls" hidden>
+            <button id="selectAllClearItems" class="text-button">Select all</button>
+            <button id="clearAllClearItems" class="text-button">Clear selection</button>
+          </div>
+          <div id="unpublishItemList" class="publish-collision-list" hidden></div>
           <p id="unpublishSafetyNote" class="publish-safety-note"><i data-lucide="history"></i>A restorable snapshot is retained for 30 days.</p>
           <div class="publish-modal-actions single-action">
             <button id="cancelUnpublish" class="secondary">Cancel</button>
-            <button id="confirmUnpublish" class="primary danger-primary">Unpublish</button>
+            <button id="confirmUnpublish" class="primary danger-primary" hidden>Continue</button>
           </div>
         </section>
       </div>
@@ -328,10 +338,10 @@
       openPublishPreview(activeCollection?.id === 'all' ? null : activeCollection?.id || null);
     });
     byId('collectionHeaderUnpublish')?.addEventListener('click',() => {
-      openUnpublishPreview(activeCollection?.id === 'all' ? null : activeCollection?.id || null);
+      openUnpublishMenu(activeCollection?.id === 'all' ? null : activeCollection?.id || null);
     });
     byId('publishWholeLibrary')?.addEventListener('click',() => openPublishPreview(null));
-    byId('unpublishWholeLibrary')?.addEventListener('click',() => openUnpublishPreview(null));
+    byId('unpublishWholeLibrary')?.addEventListener('click',() => openUnpublishMenu(null));
     byId('viewPublishedLibrary')?.addEventListener('click',() => {
       if(eligibility?.slug) window.open(`https://${PUBLIC_HOST}/@${eligibility.slug}`,'_blank','noopener');
     });
@@ -348,10 +358,14 @@
     byId('clearAllOverrides')?.addEventListener('click',() => {
       document.querySelectorAll('#publishCollisionList input').forEach(input => { input.checked = false; });
     });
-    byId('publishSkipExisting')?.addEventListener('click',() => commitPublication([],[]));
     byId('publishSelected')?.addEventListener('click',() => {
       const collections = [...document.querySelectorAll('[data-publish-kind="collection"]:checked')].map(input => input.value);
       const episodes = [...document.querySelectorAll('[data-publish-kind="episode"]:checked')].map(input => input.value);
+      commitPublication(collections,episodes);
+    });
+    byId('publishAll')?.addEventListener('click',() => {
+      const collections = (preview?.collections || []).filter(item => item.changed).map(item => item.id);
+      const episodes = (preview?.episodes || []).filter(item => item.changed).map(item => item.id);
       commitPublication(collections,episodes);
     });
     byId('closeUnpublishModal')?.addEventListener('click',closeUnpublishModal);
@@ -360,6 +374,15 @@
       if(event.target.id === 'unpublishLibraryModal') closeUnpublishModal();
     });
     byId('confirmUnpublish')?.addEventListener('click',commitUnpublication);
+    byId('chooseHidePublished')?.addEventListener('click',() => selectUnpublishMode('hide'));
+    byId('chooseClearAllPublished')?.addEventListener('click',() => selectUnpublishMode('clear-all'));
+    byId('chooseClearSelectedPublished')?.addEventListener('click',() => selectUnpublishMode('clear-selected'));
+    byId('selectAllClearItems')?.addEventListener('click',() => {
+      document.querySelectorAll('#unpublishItemList input').forEach(input => { input.checked = true; });
+    });
+    byId('clearAllClearItems')?.addEventListener('click',() => {
+      document.querySelectorAll('#unpublishItemList input').forEach(input => { input.checked = false; });
+    });
     refreshIcons();
   }
 
@@ -372,45 +395,40 @@
   function closeUnpublishModal(){
     byId('unpublishLibraryModal').hidden = true;
     unpublishPreview = null;
-    unpublishingScope = null;
+    unpublishMode = '';
+    preselectedClearCollection = null;
   }
 
-  function unpublishItemRow(kind,item){
-    return `<div class="publish-collision-row unpublish-item-row">
+  function clearItemRow(kind,item){
+    return `<label class="publish-collision-row">
+      <input type="checkbox" value="${esc(item.id)}" data-clear-kind="${kind}" ${kind === 'collection' && item.id === preselectedClearCollection ? 'checked' : ''}>
       <span class="publish-collision-icon danger-icon"><i data-lucide="${kind === 'collection' ? 'folder' : 'podcast'}"></i></span>
       <span class="publish-collision-copy">
         <strong>${esc(kind === 'collection' ? item.name : item.title)}</strong>
-        <small>${kind === 'collection' ? 'Collection will be removed from the public library' : 'Episode is not published in another collection'}</small>
+        <small>${kind === 'collection' ? 'Nested collections are included automatically' : esc(item.tag || 'Published episode')}</small>
       </span>
-    </div>`;
+    </label>`;
   }
 
-  async function openUnpublishPreview(collectionId){
+  async function openUnpublishMenu(collectionId){
     if(!currentUser){ showToast('Sign in with Google first'); return; }
     const button = collectionId ? byId('collectionHeaderUnpublish') : byId('unpublishWholeLibrary');
     if(button) button.disabled = true;
     try{
-      const {data,error} = await db().rpc('get_unpublication_preview',{p_collection_id:collectionId});
+      const {data,error} = await db().rpc('get_published_clear_preview');
       if(error) throw error;
-      if(!data?.published){
-        showToast('The public library is already hidden');
-        drawPublisherEligibility();
-        return;
-      }
       unpublishPreview = data;
-      unpublishingScope = collectionId;
-      const wholeLibrary = collectionId === null;
-      byId('unpublishModalTitle').textContent = wholeLibrary ? 'Unpublish entire library?' : 'Unpublish this collection?';
-      byId('unpublishSummary').textContent = wholeLibrary
-        ? `This will immediately hide ${data.collectionCount} collection${data.collectionCount === 1 ? '' : 's'} and ${data.episodeCount} episode${data.episodeCount === 1 ? '' : 's'} from podcasts.geodeta.us.`
-        : `${data.collectionCount} collection${data.collectionCount === 1 ? '' : 's'} and ${(data.removedEpisodes || []).length} episode${(data.removedEpisodes || []).length === 1 ? '' : 's'} will be removed. ${data.keptEpisodeCount || 0} episode${data.keptEpisodeCount === 1 ? '' : 's'} will remain because they are published in another collection.`;
-      byId('unpublishItemList').innerHTML = wholeLibrary
-        ? '<div class="publish-no-conflicts"><i data-lucide="eye-off"></i>The page will be hidden; its stored publication is retained.</div>'
-        : [
-            ...(data.collections || []).map(item => unpublishItemRow('collection',item)),
-            ...(data.removedEpisodes || []).map(item => unpublishItemRow('episode',item))
-          ].join('');
-      byId('confirmUnpublish').textContent = wholeLibrary ? 'Unpublish entire library' : 'Unpublish collection';
+      preselectedClearCollection = collectionId;
+      unpublishMode = '';
+      byId('unpublishModalTitle').textContent = 'Choose what to do';
+      byId('unpublishSummary').textContent = `${data.collections.length} published collection${data.collections.length === 1 ? '' : 's'} and ${data.episodes.length} episode${data.episodes.length === 1 ? '' : 's'} are currently stored.`;
+      byId('chooseHidePublished').disabled = !data.isPublished;
+      byId('chooseClearAllPublished').disabled = !data.collections.length && !data.episodes.length;
+      byId('chooseClearSelectedPublished').disabled = !data.collections.length && !data.episodes.length;
+      document.querySelectorAll('.unpublish-choice').forEach(choice => choice.classList.remove('selected'));
+      byId('unpublishItemList').hidden = true;
+      byId('unpublishSelectionControls').hidden = true;
+      byId('confirmUnpublish').hidden = true;
       byId('unpublishLibraryModal').hidden = false;
       refreshIcons();
     }catch(error){
@@ -421,20 +439,69 @@
     }
   }
 
+  function selectUnpublishMode(mode){
+    if(!unpublishPreview) return;
+    unpublishMode = mode;
+    document.querySelectorAll('.unpublish-choice').forEach(choice => choice.classList.remove('selected'));
+    const selectedChoice = mode === 'hide' ? byId('chooseHidePublished') : mode === 'clear-all' ? byId('chooseClearAllPublished') : byId('chooseClearSelectedPublished');
+    selectedChoice?.classList.add('selected');
+    const list = byId('unpublishItemList');
+    const controls = byId('unpublishSelectionControls');
+    const confirm = byId('confirmUnpublish');
+    list.hidden = mode !== 'clear-selected';
+    controls.hidden = mode !== 'clear-selected';
+    confirm.hidden = false;
+    if(mode === 'hide'){
+      byId('unpublishModalTitle').textContent = 'Hide public page?';
+      byId('unpublishSummary').textContent = 'The page will disappear immediately, but all published collections and episodes remain stored for later.';
+      confirm.textContent = 'Hide public page';
+    }else if(mode === 'clear-all'){
+      byId('unpublishModalTitle').textContent = 'Clear all published content?';
+      byId('unpublishSummary').textContent = `This removes ${unpublishPreview.collections.length} collection${unpublishPreview.collections.length === 1 ? '' : 's'} and ${unpublishPreview.episodes.length} episode${unpublishPreview.episodes.length === 1 ? '' : 's'}, then hides the empty page.`;
+      confirm.textContent = 'Clear all';
+    }else{
+      byId('unpublishModalTitle').textContent = 'Clear selected content';
+      byId('unpublishSummary').textContent = 'Choose published items to remove. Selecting a collection also includes every nested collection inside it.';
+      list.innerHTML = [
+        ...unpublishPreview.collections.map(item => clearItemRow('collection',item)),
+        ...unpublishPreview.episodes.map(item => clearItemRow('episode',item))
+      ].join('');
+      confirm.textContent = 'Clear selected';
+    }
+    refreshIcons();
+  }
+
   async function commitUnpublication(){
     if(!unpublishPreview) return;
+    const committedMode = unpublishMode;
     const buttons = [...document.querySelectorAll('#unpublishLibraryModal button')];
     buttons.forEach(button => { button.disabled = true; });
     try{
-      const {data,error} = await db().rpc('unpublish_library_selection',{
-        p_collection_id:unpublishingScope,
-        p_expected_revision:unpublishPreview.revision
-      });
+      let data,error;
+      if(unpublishMode === 'hide'){
+        ({data,error} = await db().rpc('unpublish_library_selection',{
+          p_collection_id:null,
+          p_expected_revision:unpublishPreview.revision
+        }));
+      }else{
+        const collectionIds = [...document.querySelectorAll('[data-clear-kind="collection"]:checked')].map(input => input.value);
+        const episodeIds = [...document.querySelectorAll('[data-clear-kind="episode"]:checked')].map(input => input.value);
+        if(unpublishMode === 'clear-selected' && !collectionIds.length && !episodeIds.length){
+          showToast('Select at least one item to clear');
+          return;
+        }
+        ({data,error} = await db().rpc('clear_published_library_selection',{
+          p_collection_ids:collectionIds,
+          p_episode_ids:episodeIds,
+          p_expected_revision:unpublishPreview.revision,
+          p_clear_all:unpublishMode === 'clear-all'
+        }));
+      }
       if(error) throw error;
-      eligibility = {...eligibility,isPublished:!data.hidden};
+      eligibility = {...eligibility,isPublished:committedMode === 'clear-selected' ? eligibility.isPublished && !data.hidden : !data.hidden};
       drawPublisherEligibility();
       closeUnpublishModal();
-      showToast(data.hidden ? 'Public library hidden' : `${data.removedCollections} collection${data.removedCollections === 1 ? '' : 's'} unpublished`);
+      showToast(committedMode === 'hide' ? 'Public library hidden' : `${data.removedCollections} collection${data.removedCollections === 1 ? '' : 's'} and ${data.removedEpisodes} episode${data.removedEpisodes === 1 ? '' : 's'} cleared`);
     }catch(error){
       console.error(error);
       showToast(error.message || 'Unpublishing failed');
@@ -476,15 +543,19 @@
       if(error) throw error;
       preview = data;
       publishingScope = collectionId;
-      const collisions = [...(data.collections || []),...(data.episodes || [])];
-      byId('publishSummary').textContent = `${data.newCollectionCount} new collection${data.newCollectionCount === 1 ? '' : 's'} and ${data.newEpisodeCount} new episode${data.newEpisodeCount === 1 ? '' : 's'} will be added automatically. ${collisions.length} existing item${collisions.length === 1 ? '' : 's'} need your decision.`;
+      const changedCollections = (data.collections || []).filter(item => item.changed);
+      const changedEpisodes = (data.episodes || []).filter(item => item.changed);
+      const overrides = [...changedCollections,...changedEpisodes];
+      byId('publishSummary').textContent = `${data.newCollectionCount} new collection${data.newCollectionCount === 1 ? '' : 's'} and ${data.newEpisodeCount} new episode${data.newEpisodeCount === 1 ? '' : 's'} will be added automatically.${overrides.length ? ` ${overrides.length} changed existing item${overrides.length === 1 ? '' : 's'} can be overridden.` : ' No existing published items need overriding.'}`;
       byId('publishCollisionList').innerHTML = [
-        ...(data.collections || []).map(item => collisionRow('collection',item)),
-        ...(data.episodes || []).map(item => collisionRow('episode',item))
-      ].join('') || '<div class="publish-no-conflicts"><i data-lucide="check-circle-2"></i>No existing published items will be replaced.</div>';
-      byId('publishCollisionControls').hidden = collisions.length === 0;
-      byId('publishSkipExisting').textContent = collisions.length ? 'Skip all existing' : 'Publish';
-      byId('publishSelected').hidden = collisions.length === 0;
+        ...changedCollections.map(item => collisionRow('collection',item)),
+        ...changedEpisodes.map(item => collisionRow('episode',item))
+      ].join('');
+      byId('publishCollisionList').hidden = overrides.length === 0;
+      byId('publishCollisionControls').hidden = overrides.length === 0;
+      byId('publishSafetyNote').hidden = overrides.length === 0;
+      byId('publishSelected').hidden = overrides.length === 0;
+      byId('publishAll').textContent = overrides.length ? 'Publish all' : 'Publish';
       byId('publishLibraryModal').hidden = false;
       refreshIcons();
     }catch(error){
@@ -534,8 +605,8 @@
       : '';
     if(view) view.disabled = !allowed || !eligibility.slug || !eligibility.isPublished;
     if(share) share.disabled = !allowed || !eligibility.slug || !eligibility.isPublished;
-    if(unpublish) unpublish.disabled = !allowed || !eligibility.isPublished;
-    if(collectionUnpublish) collectionUnpublish.hidden = !allowed || !eligibility.isPublished;
+    if(unpublish) unpublish.disabled = !allowed;
+    if(collectionUnpublish) collectionUnpublish.hidden = !allowed;
   }
 
   async function refreshEligibility(){

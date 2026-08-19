@@ -131,11 +131,37 @@
     showView(byId('libraryView'));
   }
 
+  function bindPublicControls(){
+    byId('collectionSearch')?.addEventListener('input',renderCollections);
+    byId('episodeSearch')?.addEventListener('input',renderEpisodes);
+    ['showSpotify','showLocal','showOnline'].forEach(id => {
+      byId(id)?.addEventListener('change',renderEpisodes);
+    });
+    byId('filterButton')?.addEventListener('click',event => {
+      event.stopPropagation();
+      byId('filterPopover')?.classList.toggle('open');
+    });
+    document.addEventListener('click',event => {
+      if(!event.target.closest('.collection-actions')) byId('filterPopover')?.classList.remove('open');
+    });
+    byId('playHere')?.addEventListener('click',playSelected);
+    byId('openSpotify')?.addEventListener('click',() => {
+      if(selectedEpisode?.url) window.open(selectedEpisode.url,'_blank','noopener');
+    });
+    document.querySelectorAll('.close-sheet').forEach(button => button.addEventListener('click',closeSheets));
+    document.querySelectorAll('.sheet-backdrop').forEach(sheet => {
+      sheet.addEventListener('click',event => { if(event.target === sheet) closeSheets(); });
+    });
+  }
+
   async function initPublicSite(){
     if(!db()) throw new Error('The published library service did not load');
     libraryReadOnly = true;
     const slug = cleanSlug();
-    if(slug) await loadPublishedLibrary(slug);
+    if(slug){
+      bindPublicControls();
+      await loadPublishedLibrary(slug);
+    }
     else await loadDirectory();
     refreshIcons();
     window.dispatchEvent(new Event('geodeta:data-startup-ready'));

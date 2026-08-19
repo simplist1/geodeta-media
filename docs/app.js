@@ -1397,11 +1397,13 @@ async function setupAuth(){
   currentUser = data.session?.user || null;
   updateGoogleButton();
   renderAll();
+  await window.publicPublishing?.refreshEligibility?.();
 
   db().auth.onAuthStateChange((event,session) => {
     currentUser = session?.user || null;
     updateGoogleButton();
     renderAll();
+    setTimeout(() => window.publicPublishing?.refreshEligibility?.(),0);
 
   });
 }
@@ -1496,6 +1498,16 @@ function bindEvents(){
 }
 
 async function init(){
+  if(window.publishedLibrary?.isPublicSite?.()){
+    try{
+      await window.publishedLibrary.initPublicSite();
+    }catch(error){
+      console.error(error);
+      showToast(error.message || 'Published library failed to load');
+      window.dispatchEvent(new Event('geodeta:data-startup-ready'));
+    }
+    return;
+  }
   bindEvents();
   setupProfile();
   setupSpotifyButton();

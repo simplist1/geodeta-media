@@ -1,5 +1,6 @@
 (() => {
   const PUBLIC_HOST = 'podcasts.geodeta.us';
+  const PUBLIC_INSTALL_NEVER_KEY = 'geodetaPublicInstallNever';
   const isPublicSite = () => location.hostname === PUBLIC_HOST;
   const byId = id => document.getElementById(id);
 
@@ -8,6 +9,80 @@
       .replace(/^@/,'')
       .trim()
       .toLowerCase();
+  }
+
+  function publicLibraryUrl(slug){
+    return `https://${PUBLIC_HOST}/@${slug}`;
+  }
+
+  async function shareLink(url,title='Geodeta Podcasts'){
+    try{
+      if(navigator.share){
+        await navigator.share({title,url});
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      showToast('Public link copied');
+    }catch(error){
+      if(error?.name === 'AbortError') return;
+      const input = document.createElement('textarea');
+      input.value = url;
+      input.style.position = 'fixed';
+      input.style.opacity = '0';
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      input.remove();
+      showToast('Public link copied');
+    }
+  }
+
+  function requestPublicInstall(){
+    const privateInstallButton = byId('installApp');
+    if(privateInstallButton) privateInstallButton.click();
+    else showToast('Use your browser menu to install this app');
+  }
+
+  function injectPublicActions(slug){
+    const topbar = document.querySelector('#libraryView .topbar');
+    if(!topbar || byId('publicPageActions')) return;
+    topbar.insertAdjacentHTML('beforeend',`
+      <div id="publicPageActions" class="public-page-actions">
+        <button id="publicBackToDirectory" class="public-header-button" type="button" ${slug ? '' : 'hidden'}><i data-lucide="arrow-left"></i><span>All libraries</span></button>
+        <button id="publicShareLibrary" class="public-header-button" type="button" ${slug ? '' : 'hidden'}><i data-lucide="share-2"></i><span>Share</span></button>
+        <button id="publicInstallApp" class="public-header-button public-install-button" type="button"><i data-lucide="download"></i><span>Install app</span></button>
+      </div>`);
+    byId('publicBackToDirectory')?.addEventListener('click',() => { location.href = '/'; });
+    byId('publicShareLibrary')?.addEventListener('click',() => shareLink(publicLibraryUrl(slug),document.title));
+    byId('publicInstallApp')?.addEventListener('click',requestPublicInstall);
+    refreshIcons();
+  }
+
+  function showPublicInstallPrompt(){
+    if(cleanSlug() || matchMedia('(display-mode: standalone)').matches || navigator.standalone === true) return;
+    if(localStorage.getItem(PUBLIC_INSTALL_NEVER_KEY) === 'true' || byId('publicInstallPrompt')) return;
+    document.body.insertAdjacentHTML('beforeend',`
+      <div id="publicInstallPrompt" class="public-install-prompt-backdrop" role="dialog" aria-modal="true" aria-labelledby="publicInstallPromptTitle">
+        <section class="public-install-prompt">
+          <span class="public-install-prompt-icon"><i data-lucide="smartphone"></i></span>
+          <p class="eyebrow">GEODETA PODCASTS</p>
+          <h3 id="publicInstallPromptTitle">Install the app?</h3>
+          <p>Keep published podcast libraries one tap away and open them in a standalone app.</p>
+          <button id="publicInstallNow" class="primary" type="button"><i data-lucide="download"></i>Install</button>
+          <div class="public-install-dismissals">
+            <button id="publicInstallNotNow" class="public-link-button" type="button">Not now</button>
+            <button id="publicInstallNever" class="public-link-button" type="button">Don’t remind me again</button>
+          </div>
+        </section>
+      </div>`);
+    const close = () => byId('publicInstallPrompt')?.remove();
+    byId('publicInstallNow')?.addEventListener('click',() => { close(); requestPublicInstall(); });
+    byId('publicInstallNotNow')?.addEventListener('click',close);
+    byId('publicInstallNever')?.addEventListener('click',() => {
+      localStorage.setItem(PUBLIC_INSTALL_NEVER_KEY,'true');
+      close();
+    });
+    refreshIcons();
   }
 
   function publicEpisodeOpen(privateOpenPlayer){
@@ -158,6 +233,7 @@
     if(!db()) throw new Error('The published library service did not load');
     libraryReadOnly = true;
     const slug = cleanSlug();
+    injectPublicActions(slug);
     if(slug){
       bindPublicControls();
       await loadPublishedLibrary(slug);
@@ -165,6 +241,7 @@
     else await loadDirectory();
     refreshIcons();
     window.dispatchEvent(new Event('geodeta:data-startup-ready'));
+    if(!slug) setTimeout(showPublicInstallPrompt,700);
   }
 
   let eligibility = null;
@@ -196,6 +273,10 @@
           <div class="settings-row">
             <div class="settings-copy"><strong>Public page</strong><span id="publisherPublicUrl">Publish once to create your page.</span></div>
             <button id="viewPublishedLibrary" class="action-button" disabled><i data-lucide="external-link"></i>View</button>
+          </div>
+          <div class="settings-row">
+            <div class="settings-copy"><strong>Share public page</strong><span>Send a direct link that opens your published library.</span></div>
+            <button id="sharePublishedLibrary" class="action-button" disabled><i data-lucide="share-2"></i>Share</button>
           </div>
           <div class="settings-row">
             <div class="settings-copy"><strong>Unpublish entire library</strong><span>Hide the public page while keeping its 30-day revision history.</span></div>
@@ -253,6 +334,9 @@
     byId('unpublishWholeLibrary')?.addEventListener('click',() => openUnpublishPreview(null));
     byId('viewPublishedLibrary')?.addEventListener('click',() => {
       if(eligibility?.slug) window.open(`https://${PUBLIC_HOST}/@${eligibility.slug}`,'_blank','noopener');
+    });
+    byId('sharePublishedLibrary')?.addEventListener('click',() => {
+      if(eligibility?.slug) shareLink(publicLibraryUrl(eligibility.slug),'My Geodeta Podcast Library');
     });
     byId('closePublishModal')?.addEventListener('click',closePublishModal);
     byId('publishLibraryModal')?.addEventListener('click',event => {
@@ -442,12 +526,14 @@
     document.querySelectorAll('.publisher-only').forEach(element => { element.hidden = !allowed; });
     const url = byId('publisherPublicUrl');
     const view = byId('viewPublishedLibrary');
+    const share = byId('sharePublishedLibrary');
     const unpublish = byId('unpublishWholeLibrary');
     const collectionUnpublish = byId('collectionHeaderUnpublish');
     if(url) url.textContent = allowed
       ? `${eligibility.isPublished ? '' : 'Hidden · '}podcasts.geodeta.us/@${eligibility.slug}`
       : '';
     if(view) view.disabled = !allowed || !eligibility.slug || !eligibility.isPublished;
+    if(share) share.disabled = !allowed || !eligibility.slug || !eligibility.isPublished;
     if(unpublish) unpublish.disabled = !allowed || !eligibility.isPublished;
     if(collectionUnpublish) collectionUnpublish.hidden = !allowed || !eligibility.isPublished;
   }

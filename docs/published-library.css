@@ -16,6 +16,14 @@
 .published-site .episode{padding-right:14px}
 .published-site .episode-side{display:grid;place-items:center}
 .published-site .topbar .avatar{cursor:default}
+.public-page-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap}
+.public-header-button{display:inline-flex;align-items:center;gap:6px;min-height:38px;padding:8px 11px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--text);font-size:12px;font-weight:720;box-shadow:0 5px 18px rgba(25,25,35,.05);cursor:pointer}
+.public-header-button svg{width:15px;height:15px}.public-install-button{background:var(--accent);border-color:transparent;color:#fff}
+.public-install-prompt-backdrop{position:fixed;inset:0;z-index:125;display:grid;place-items:center;padding:18px;background:rgba(10,10,15,.4);backdrop-filter:blur(8px)}
+.public-install-prompt{width:min(100%,390px);padding:24px;border:1px solid var(--line);border-radius:26px;background:var(--card);box-shadow:0 28px 80px rgba(12,12,20,.3);text-align:center}
+.public-install-prompt-icon{width:54px;height:54px;display:grid;place-items:center;margin:0 auto 15px;border-radius:17px;background:var(--soft);color:var(--accent)}
+.public-install-prompt-icon svg{width:25px}.public-install-prompt h3{font-size:25px;letter-spacing:-.03em}.public-install-prompt>p:not(.eyebrow){margin:10px 0 0;color:var(--muted);font-size:13px;line-height:1.5}.public-install-prompt .primary{min-height:48px}
+.public-install-dismissals{display:flex;justify-content:center;gap:17px;margin-top:14px}.public-link-button{border:0;background:none;padding:3px;color:var(--muted);font-size:12px;text-decoration:underline;text-underline-offset:3px;cursor:pointer}.public-link-button:hover{color:var(--accent)}
 .public-profile-copy{min-width:0}
 .public-profile-card .group-icon{background:var(--accent)}
 .public-not-found{grid-column:1/-1;display:grid;gap:8px;padding:44px 18px;text-align:center;color:var(--muted)}
@@ -60,6 +68,8 @@
 .publish-modal button:disabled{opacity:.55;cursor:wait}
 
 @media(max-width:520px){
+  .published-site .topbar{align-items:flex-start}.public-page-actions{max-width:190px}.public-header-button span{display:none}.public-header-button{width:38px;padding:0;justify-content:center}.public-header-button svg{width:17px;height:17px}
+  .public-install-prompt-backdrop{align-items:end;padding:0}.public-install-prompt{width:100%;border-radius:26px 26px 0 0;padding-bottom:calc(22px + env(safe-area-inset-bottom))}
   .publish-modal-backdrop{padding:0;align-items:end}
   .publish-modal{max-height:92vh;border-radius:26px 26px 0 0;padding-bottom:calc(18px + env(safe-area-inset-bottom))}
   .publish-modal-actions{grid-template-columns:1fr}
@@ -71,4 +81,5 @@
 @media(prefers-color-scheme:dark){
   .publish-change-state.changed{color:#f5b942}
   .publish-modal{background:#1c1c20}
+  .public-install-prompt{background:#1c1c20}
 }

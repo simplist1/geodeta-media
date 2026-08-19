@@ -170,11 +170,16 @@
   let eligibility = null;
   let preview = null;
   let publishingScope = null;
+  let unpublishPreview = null;
+  let unpublishingScope = null;
 
   function injectPublisherUi(){
     if(byId('publishLibraryModal')) return;
     const actions = document.querySelector('.collection-actions');
     actions?.insertAdjacentHTML('afterbegin',`
+      <button id="collectionHeaderUnpublish" class="icon-button publisher-only" aria-label="Unpublish collection" hidden>
+        <i data-lucide="eye-off"></i>
+      </button>
       <button id="collectionHeaderPublish" class="icon-button publisher-only" aria-label="Publish collection" hidden>
         <i data-lucide="send"></i>
       </button>
@@ -191,6 +196,10 @@
           <div class="settings-row">
             <div class="settings-copy"><strong>Public page</strong><span id="publisherPublicUrl">Publish once to create your page.</span></div>
             <button id="viewPublishedLibrary" class="action-button" disabled><i data-lucide="external-link"></i>View</button>
+          </div>
+          <div class="settings-row">
+            <div class="settings-copy"><strong>Unpublish entire library</strong><span>Hide the public page while keeping its 30-day revision history.</span></div>
+            <button id="unpublishWholeLibrary" class="action-button danger-action" disabled><i data-lucide="eye-off"></i>Unpublish</button>
           </div>
         </div>
       </section>
@@ -216,11 +225,32 @@
         </section>
       </div>
     `);
+    document.body.insertAdjacentHTML('beforeend',`
+      <div id="unpublishLibraryModal" class="publish-modal-backdrop" hidden>
+        <section class="publish-modal" role="dialog" aria-modal="true" aria-labelledby="unpublishModalTitle">
+          <div class="publish-modal-head">
+            <div><p class="eyebrow">SAFE UNPUBLISH</p><h3 id="unpublishModalTitle">Review what will be removed</h3></div>
+            <button id="closeUnpublishModal" class="icon-button" aria-label="Close"><i data-lucide="x"></i></button>
+          </div>
+          <p id="unpublishSummary" class="publish-summary"></p>
+          <div id="unpublishItemList" class="publish-collision-list"></div>
+          <p id="unpublishSafetyNote" class="publish-safety-note"><i data-lucide="history"></i>A restorable snapshot is retained for 30 days.</p>
+          <div class="publish-modal-actions single-action">
+            <button id="cancelUnpublish" class="secondary">Cancel</button>
+            <button id="confirmUnpublish" class="primary danger-primary">Unpublish</button>
+          </div>
+        </section>
+      </div>
+    `);
 
     byId('collectionHeaderPublish')?.addEventListener('click',() => {
       openPublishPreview(activeCollection?.id === 'all' ? null : activeCollection?.id || null);
     });
+    byId('collectionHeaderUnpublish')?.addEventListener('click',() => {
+      openUnpublishPreview(activeCollection?.id === 'all' ? null : activeCollection?.id || null);
+    });
     byId('publishWholeLibrary')?.addEventListener('click',() => openPublishPreview(null));
+    byId('unpublishWholeLibrary')?.addEventListener('click',() => openUnpublishPreview(null));
     byId('viewPublishedLibrary')?.addEventListener('click',() => {
       if(eligibility?.slug) window.open(`https://${PUBLIC_HOST}/@${eligibility.slug}`,'_blank','noopener');
     });
@@ -240,6 +270,12 @@
       const episodes = [...document.querySelectorAll('[data-publish-kind="episode"]:checked')].map(input => input.value);
       commitPublication(collections,episodes);
     });
+    byId('closeUnpublishModal')?.addEventListener('click',closeUnpublishModal);
+    byId('cancelUnpublish')?.addEventListener('click',closeUnpublishModal);
+    byId('unpublishLibraryModal')?.addEventListener('click',event => {
+      if(event.target.id === 'unpublishLibraryModal') closeUnpublishModal();
+    });
+    byId('confirmUnpublish')?.addEventListener('click',commitUnpublication);
     refreshIcons();
   }
 
@@ -247,6 +283,81 @@
     byId('publishLibraryModal').hidden = true;
     preview = null;
     publishingScope = null;
+  }
+
+  function closeUnpublishModal(){
+    byId('unpublishLibraryModal').hidden = true;
+    unpublishPreview = null;
+    unpublishingScope = null;
+  }
+
+  function unpublishItemRow(kind,item){
+    return `<div class="publish-collision-row unpublish-item-row">
+      <span class="publish-collision-icon danger-icon"><i data-lucide="${kind === 'collection' ? 'folder' : 'podcast'}"></i></span>
+      <span class="publish-collision-copy">
+        <strong>${esc(kind === 'collection' ? item.name : item.title)}</strong>
+        <small>${kind === 'collection' ? 'Collection will be removed from the public library' : 'Episode is not published in another collection'}</small>
+      </span>
+    </div>`;
+  }
+
+  async function openUnpublishPreview(collectionId){
+    if(!currentUser){ showToast('Sign in with Google first'); return; }
+    const button = collectionId ? byId('collectionHeaderUnpublish') : byId('unpublishWholeLibrary');
+    if(button) button.disabled = true;
+    try{
+      const {data,error} = await db().rpc('get_unpublication_preview',{p_collection_id:collectionId});
+      if(error) throw error;
+      if(!data?.published){
+        showToast('The public library is already hidden');
+        drawPublisherEligibility();
+        return;
+      }
+      unpublishPreview = data;
+      unpublishingScope = collectionId;
+      const wholeLibrary = collectionId === null;
+      byId('unpublishModalTitle').textContent = wholeLibrary ? 'Unpublish entire library?' : 'Unpublish this collection?';
+      byId('unpublishSummary').textContent = wholeLibrary
+        ? `This will immediately hide ${data.collectionCount} collection${data.collectionCount === 1 ? '' : 's'} and ${data.episodeCount} episode${data.episodeCount === 1 ? '' : 's'} from podcasts.geodeta.us.`
+        : `${data.collectionCount} collection${data.collectionCount === 1 ? '' : 's'} and ${(data.removedEpisodes || []).length} episode${(data.removedEpisodes || []).length === 1 ? '' : 's'} will be removed. ${data.keptEpisodeCount || 0} episode${data.keptEpisodeCount === 1 ? '' : 's'} will remain because they are published in another collection.`;
+      byId('unpublishItemList').innerHTML = wholeLibrary
+        ? '<div class="publish-no-conflicts"><i data-lucide="eye-off"></i>The page will be hidden; its stored publication is retained.</div>'
+        : [
+            ...(data.collections || []).map(item => unpublishItemRow('collection',item)),
+            ...(data.removedEpisodes || []).map(item => unpublishItemRow('episode',item))
+          ].join('');
+      byId('confirmUnpublish').textContent = wholeLibrary ? 'Unpublish entire library' : 'Unpublish collection';
+      byId('unpublishLibraryModal').hidden = false;
+      refreshIcons();
+    }catch(error){
+      console.error(error);
+      showToast(error.message || 'Could not prepare unpublish preview');
+    }finally{
+      if(button) button.disabled = false;
+    }
+  }
+
+  async function commitUnpublication(){
+    if(!unpublishPreview) return;
+    const buttons = [...document.querySelectorAll('#unpublishLibraryModal button')];
+    buttons.forEach(button => { button.disabled = true; });
+    try{
+      const {data,error} = await db().rpc('unpublish_library_selection',{
+        p_collection_id:unpublishingScope,
+        p_expected_revision:unpublishPreview.revision
+      });
+      if(error) throw error;
+      eligibility = {...eligibility,isPublished:!data.hidden};
+      drawPublisherEligibility();
+      closeUnpublishModal();
+      showToast(data.hidden ? 'Public library hidden' : `${data.removedCollections} collection${data.removedCollections === 1 ? '' : 's'} unpublished`);
+    }catch(error){
+      console.error(error);
+      showToast(error.message || 'Unpublishing failed');
+      if(error.code === '40001') closeUnpublishModal();
+    }finally{
+      buttons.forEach(button => { button.disabled = false; });
+    }
   }
 
   function collisionRow(kind,item){
@@ -313,6 +424,7 @@
       });
       if(error) throw error;
       eligibility = {...eligibility,slug:data.slug};
+      eligibility.isPublished = true;
       drawPublisherEligibility();
       closePublishModal();
       showToast(`Published revision ${data.revision}`);
@@ -330,8 +442,14 @@
     document.querySelectorAll('.publisher-only').forEach(element => { element.hidden = !allowed; });
     const url = byId('publisherPublicUrl');
     const view = byId('viewPublishedLibrary');
-    if(url) url.textContent = allowed ? `podcasts.geodeta.us/@${eligibility.slug}` : '';
-    if(view) view.disabled = !allowed || !eligibility.slug;
+    const unpublish = byId('unpublishWholeLibrary');
+    const collectionUnpublish = byId('collectionHeaderUnpublish');
+    if(url) url.textContent = allowed
+      ? `${eligibility.isPublished ? '' : 'Hidden · '}podcasts.geodeta.us/@${eligibility.slug}`
+      : '';
+    if(view) view.disabled = !allowed || !eligibility.slug || !eligibility.isPublished;
+    if(unpublish) unpublish.disabled = !allowed || !eligibility.isPublished;
+    if(collectionUnpublish) collectionUnpublish.hidden = !allowed || !eligibility.isPublished;
   }
 
   async function refreshEligibility(){
@@ -345,8 +463,18 @@
         .eq('enabled',true)
         .maybeSingle();
       if(!error && data){
-        const previewResult = await db().rpc('get_publication_preview',{p_collection_id:null});
-        if(!previewResult.error) eligibility = {slug:previewResult.data.slug};
+        const profileResult = await db()
+          .from('published_profiles')
+          .select('slug,is_published,revision')
+          .eq('user_id',currentUser.id)
+          .maybeSingle();
+        if(!profileResult.error && profileResult.data){
+          eligibility = {
+            slug:profileResult.data.slug,
+            isPublished:Boolean(profileResult.data.is_published),
+            revision:Number(profileResult.data.revision) || 0
+          };
+        }
       }
     }
     drawPublisherEligibility();
